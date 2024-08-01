@@ -300,8 +300,34 @@ def render_marks_page(username):
         st.error("User does not exist.")
 
 def render_fees_page():
-    # Add your implementation here if needed
-    pass
+    db = connect_db()
+    user_col = db['students']
+    username = get_username()['username']
+    user = user_col.find_one({"USN": username})
+
+    if get_login_status()[0] == 'Admin':
+        st.subheader("Update Fees Status")
+        student_usn = st.text_input("Student USN")
+        fees_status = st.selectbox("Fees Status", ["Pending", "Paid"])
+        update_fees_button = st.button("Update Fees Status")
+
+        if update_fees_button:
+            if student_usn:
+                user = user_col.find_one({"USN": student_usn})
+                if user:
+                    user_col.update_one({"USN": student_usn}, {'$set': {"Fees.Status": fees_status}})
+                    st.success("Fees status updated successfully!")
+                else:
+                    st.error("Student does not exist.")
+            else:
+                st.error("Please enter a student USN.")
+    else:
+        if user:
+            st.subheader("Fees Status")
+            fees_status = user.get('Fees', {}).get('Status', 'Pending')
+            st.write(f"Current Fees Status: {fees_status}")
+        else:
+            st.error("User does not exist.")
 
 if __name__ == "__main__":
     main()
