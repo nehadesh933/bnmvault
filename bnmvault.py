@@ -1,5 +1,6 @@
 import streamlit as st
 import pymongo
+from pymongo.errors import ConnectionFailure
 from PIL import Image
 
 st.title("BNM VAULT")
@@ -12,7 +13,7 @@ def connect_db():
         )
         db = conn["bnmvault"]  # Use the database name that matches your MongoDB Atlas setup
         return db
-    except pymongo.errors.ConnectionFailure as e:
+    except ConnectionFailure as e:
         st.error(f"Could not connect to MongoDB: {e}")
         return None
 
@@ -35,7 +36,7 @@ def set_login_status(logged_in):
 
 def student_login(username, password):
     db = connect_db()
-    if db:
+    if db is not None:
         user_collection = db.students
         user = user_collection.find_one({"USN": username, "Password": password})
         return user is not None
@@ -46,7 +47,7 @@ def admin_login(user, username, password):
 
 def add_student():
     db = connect_db()
-    if db:
+    if db is not None:
         user_col = db["students"]
         st.subheader("Add Student")
         student_usn = st.text_input("USN")
@@ -81,7 +82,7 @@ def add_student():
 
 def add_attendance():
     db = connect_db()
-    if db:
+    if db is not None:
         user_col = db["students"]
         st.subheader("Add Attendance")
         date = st.date_input("Date")
@@ -120,7 +121,7 @@ def add_attendance():
 
 def add_marks():
     db = connect_db()
-    if db:
+    if db is not None:
         user_col = db["students"]
         st.subheader("Add Marks")
         student_usn = st.text_input("Student USN")
@@ -150,7 +151,7 @@ def add_marks():
 
 def render_login_page():
     db = connect_db()
-    if db:
+    if db is not None:
         user_collection = db.students
         st.title("Login Portal")
 
@@ -206,7 +207,7 @@ def render_admin_page():
 
 def search_by_usn():
     db = connect_db()
-    if db:
+    if db is not None:
         user_col = db["students"]
         usn = st.text_input("Enter USN to search")
         submit = st.button("Search")
@@ -226,7 +227,7 @@ def search_by_usn():
 
 def render_user_page():
     db = connect_db()
-    if db:
+    if db is not None:
         user_col = db["students"]
 
         st.markdown(
