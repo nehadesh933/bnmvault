@@ -1,55 +1,45 @@
 import streamlit as st
-import pandas as pd
-import altair as alt
 import pymongo
 from PIL import Image
-from collections.abc import MutableMapping
-from collections import namedtuple
-
+from datetime import datetime
 
 st.title("BNM VAULT")
 
+# Function to connect to MongoDB Atlas
 def connect_db():
-    # Use the MongoDB Atlas connection string
     conn = pymongo.MongoClient("mongodb+srv://nehadesh2003:123@cluster.m0jtccy.mongodb.net/")
-    db = conn['bnmvault']  # Use the database name that matches your MongoDB Atlas setup
+    db = conn['bnmvault']
     return db
 
-# Function to find the current user details and cache the result
-@st.cache_resource()
+# Function to manage user session
+@st.experimental_singleton
 def get_username():
     return {'username': None}
 
-# Function to store the current user details
+@st.experimental_singleton
+def get_login_status():
+    return [False]
+
 def set_username(user):
     username = get_username()
     username['username'] = user
 
-# Function to check the login status and cache the result
-@st.cache_resource()
-def get_login_status():
-    return [False]
+def set_login_status(logged_in):
+    login_status = get_login_status()
+    login_status[0] = logged_in
 
+# Function for student login
 def student_login(username, password):
     db = connect_db()
     user_collection = db.students
     user = user_collection.find_one({"USN": username, "Password": password})
+    return user is not None
 
-    if user:
-        return 1
-    else:
-        return 0
-
-# Function to check admin login credentials
+# Function for admin login
 def admin_login(user, username, password):
     return username == user['Username'] and password == user['Password']
 
-def set_login_status(logged_in):
-    login_status = get_login_status()
-    login_status.clear()
-    login_status.append(logged_in)
-
-# Function to add a student
+# Functions for various admin functionalities
 def add_student():
     db = connect_db()
     user_col = db['students']
@@ -74,7 +64,6 @@ def add_student():
         else:
             st.error("User already exists.")
 
-# Function to add attendance
 def add_attendance():
     db = connect_db()
     user_col = db['students']
@@ -86,11 +75,11 @@ def add_attendance():
     classes_present = st.number_input("Classes Present", min_value=0)
     total_classes = st.number_input("Total Classes", min_value=0)
 
-    # Calculate attendance percentage based on classes present and total classes
+    # Calculate attendance percentage
     attendance_percentage = (classes_present / total_classes) * 100 if total_classes > 0 else 0
     st.write(f"Attendance Percentage: {attendance_percentage:.2f}%")
     num_absent = total_classes - classes_present
-    st.write(f"Total Classes Absent: {num_absent: d}")
+    st.write(f"Total Classes Absent: {num_absent}")
 
     add_attendance_button = st.button("Add Attendance")
 
@@ -104,7 +93,6 @@ def add_attendance():
         else:
             st.error("User does not exist.")
 
-# Function to add marks
 def add_marks():
     db = connect_db()
     user_col = db['students']
@@ -117,7 +105,6 @@ def add_marks():
     add_marks_button = st.button("Add Marks")
 
     if add_marks_button:
-        # Calculate percentage based on marks obtained and total marks
         user = user_col.find_one({"USN": student_usn})
         if user:
             user_col.update_one({"USN": student_usn},
@@ -128,10 +115,8 @@ def add_marks():
             st.error("User does not exist.")
 
 def main():
-    # Check if user is logged in
     logged_in = get_login_status()[0]
 
-    # If the user is not logged in, show the login page
     if not logged_in:
         render_login_page()
     elif logged_in == 'Student':
@@ -153,8 +138,7 @@ def render_login_page():
         submitted = st.button("Login")
 
         if submitted:
-            user = user_collection.find_one({"USN": username})
-            if user and student_login(username, password):
+            if student_login(username, password):
                 set_username(username)
                 set_login_status('Student')
                 st.experimental_rerun()
@@ -170,7 +154,6 @@ def render_login_page():
         if admin_submitted:
             user = user_collection.find_one({"Username": admin_username})
             if user and admin_login(user, admin_username, admin_password):
-                st.success("Admin login successful!")
                 set_login_status('Admin')
                 st.experimental_rerun()
             else:
@@ -190,7 +173,6 @@ def render_admin_page():
     elif selected_option == "Search by USN":
         search_by_usn()
 
-    # Logout button
     if st.sidebar.button("Logout"):
         set_login_status(False)
         st.experimental_rerun()
@@ -205,12 +187,12 @@ def search_by_usn():
         if user:
             st.subheader(f"Student details of {user['First Name']}")
             col1, col2 = st.columns(2)
-            col1.text_input(f"First Name", value=f"{user['First Name']}", disabled=True)
-            col2.text_input(f"Last Name", value=f"{user['Last Name']}", disabled=True)
-            col1.text_input(f"Age", value=f"{user['Age']}", disabled=True)
-            col2.text_input(f"Gender", value=f"{user['Gender']}", disabled=True)
-            col1.text_input(f"DOB", value=f"{user['DOB']}", disabled=True)
-            col2.text_input(f"Email", value=f"{user['Email']}", disabled=True)
+            col1.text_input("First Name", value=f"{user['First Name']}", disabled=True)
+            col2.text_input("Last Name", value=f"{user['Last Name']}", disabled=True)
+            col1.text_input("Age", value=f"{user['Age']}", disabled=True)
+            col2.text_input("Gender", value=f"{user['Gender']}", disabled=True)
+            col1.text_input("DOB", value=f"{user['DOB']}", disabled=True)
+            col2.text_input("Email", value=f"{user['Email']}", disabled=True)
         else:
             st.error("Student doesn't exist")
 
@@ -230,11 +212,9 @@ def render_user_page():
     )
 
     with st.sidebar:
-        # Create buttons for the dashboard
         username = get_username()['username']
         user = user_col.find_one({'USN': username})
         
-        # Check if user data is available
         if user:
             st.header(f"Welcome, {user.get('First Name', 'Student')}")
         else:
@@ -251,13 +231,10 @@ def render_user_page():
 
     if selected_option == "Attendance":
         display_attendance()
-
     elif selected_option == "Academics":
         display_academics()
-
     elif selected_option == "Fees":
         display_fees()
-
     elif selected_option == "Events":
         display_events()
 
@@ -267,11 +244,9 @@ def display_attendance():
     st.subheader("Attendance")
     username = get_username()['username']
     user = user_col.find_one({"USN": username})
-    # Check if attendance data is available for the user
     if 'Attendance' in user:
         attendance = user['Attendance']
         if attendance:
-            # Display attendance details for each subject
             for subject, attn in attendance.items():
                 st.write(f"**{subject}:**")
                 st.write(f"Classes Present: {attn['Classes Present']}")
@@ -296,7 +271,6 @@ def display_academics():
     if 'Marks' in user:
         academics = user['Marks']
         if academics:
-            # Display academic details for each subject
             for subject, marks in academics.items():
                 st.write(f"**{subject}:**")
                 st.write(f"Marks Obtained: {marks['Marks Obtained']}")
@@ -316,14 +290,13 @@ def display_fees():
     user = user_col.find_one({"USN": username})
 
     if user and 'Fees' in user:
-        # Display fee status
         st.write(f"Fees Status: {user['Fees'].get('Status', 'N/A')}")
     else:
         st.write("No fee records available.")
 
 def display_events():
     st.subheader("Events")
-    image = Image.open("/path/to/image.jpg")
+    image = Image.open("path/to/image.jpg")  # Update the image path
     st.image(image, caption="Event Poster")
     st.markdown("[Click here for event details](https://event-details-link)")
 
