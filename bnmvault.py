@@ -316,7 +316,7 @@ def display_events():
         st.image(image, caption="Event Poster")
     except FileNotFoundError:
         st.error("Event poster image not found.")
-    st.markdown("[Click here for event details](https://event-details-link)")
+    st.markdown("[Click here for event details](https://www.bnmit.org/event/ibm-hackathon/)")
 
 if __name__ == "__main__":
     main()
