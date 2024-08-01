@@ -6,6 +6,7 @@ from PIL import Image
 from collections.abc import MutableMapping
 from collections import namedtuple
 
+
 st.title("BNM VAULT")
 
 def connect_db():
@@ -14,20 +15,11 @@ def connect_db():
     db = conn['bnmvault']  # Use the database name that matches your MongoDB Atlas setup
     return db
 
-# Function to find the current user details and cache the result
-@st.cache_resource()
-def get_username():
-    return {'username': None}
-
-# Function to store the current user details
-def set_username(user):
-    username = get_username()
-    username['username'] = user
-
-# Function to check the login status and cache the result
-@st.cache_resource()
-def get_login_status():
-    return [False]
+# Use session state for login status and username
+if 'login_status' not in st.session_state:
+    st.session_state.login_status = False
+if 'username' not in st.session_state:
+    st.session_state.username = None
 
 def student_login(username, password):
     db = connect_db()
@@ -35,20 +27,19 @@ def student_login(username, password):
     user = user_collection.find_one({"USN": username, "Password": password})
 
     if user:
-        return 1
+        return True
     else:
-        return 0
+        return False
 
-# Function to check admin login credentials
 def admin_login(user, username, password):
     return username == user['Username'] and password == user['Password']
 
 def set_login_status(logged_in):
-    login_status = get_login_status()
-    login_status.clear()
-    login_status.append(logged_in)
+    st.session_state.login_status = logged_in
 
-# Function to add a student
+def set_username(user):
+    st.session_state.username = user
+
 def add_student():
     db = connect_db()
     user_col = db['students']
@@ -73,7 +64,6 @@ def add_student():
         else:
             st.error("User already exists.")
 
-# Function to add attendance
 def add_attendance():
     db = connect_db()
     user_col = db['students']
@@ -103,7 +93,6 @@ def add_attendance():
         else:
             st.error("User does not exist.")
 
-# Function to add marks
 def add_marks():
     db = connect_db()
     user_col = db['students']
@@ -128,7 +117,7 @@ def add_marks():
 
 def main():
     # Check if user is logged in
-    logged_in = get_login_status()[0]
+    logged_in = st.session_state.login_status
 
     # If the user is not logged in, show the login page
     if not logged_in:
@@ -192,7 +181,7 @@ def render_admin_page():
     # Logout button
     if st.sidebar.button("Logout"):
         set_login_status(False)
-        st.experimental_rerun()
+        st.session_state.username = None
 
 def search_by_usn():
     db = connect_db()
@@ -230,7 +219,7 @@ def render_user_page():
 
     with st.sidebar:
         # Create buttons for the dashboard
-        username = get_username()['username']
+        username = st.session_state.username
         user = user_col.find_one({'USN': username})
         
         # Check if user data is available
@@ -241,72 +230,79 @@ def render_user_page():
 
         st.subheader("Your Dashboard")
         menu_options = ["Attendance", "Academics", "Fees", "Events"]
-        selected_option = st.sidebar.selectbox("Select an Option", menu_options)
-        logout_button = st.button("Logout")
+        selected_option = st.selectbox("Select an Option", menu_options)
 
-        if logout_button:
-            set_login_status(False)
-            st.experimental_rerun()
+        if selected_option == "Attendance":
+            st.subheader("Attendance Details")
+            display_attendance(username)
+        elif selected_option == "Academics":
+            st.subheader("Academics Details")
+            display_marks(username)
+        elif selected_option == "Fees":
+            st.subheader("Fees Details")
+            display_fees(username)
+        elif selected_option == "Events":
+            display_events()
 
-    # Content for each menu option
-    if selected_option == "Attendance":
-        display_attendance()
-    elif selected_option == "Academics":
-        display_academics()
-    elif selected_option == "Fees":
-        display_fees()
-    elif selected_option == "Events":
-        display_events()
+    # Logout button
+    if st.button("Logout"):
+        set_login_status(False)
+        st.session_state.username = None
+        st.experimental_rerun()
 
-def display_attendance():
-    st.subheader("Your Attendance")
+def display_attendance(username):
     db = connect_db()
     user_col = db['students']
-    username = get_username()['username']
-    user = user_col.find_one({"USN": username})
-
+    user = user_col.find_one({'USN': username})
+    
     if user:
-        st.write(f"Attendance for {user['First Name']} {user['Last Name']}")
-        attendance = user.get('Attendance', {})
-        for subject, data in attendance.items():
-            st.write(f"**{subject}**")
-            st.write(f"Classes Present: {data.get('Classes Present', 'N/A')}")
-            st.write(f"Total Classes: {data.get('Total Classes', 'N/A')}")
-            st.write(f"Percentage: {((data.get('Classes Present', 0) / data.get('Total Classes', 1)) * 100):.2f}%")
+        st.write(f"Attendance Details for {username}")
+        attendance_data = user.get('Attendance', {})
+        
+        if attendance_data:
+            for subject, details in attendance_data.items():
+                st.write(f"{subject}:")
+                st.write(f"  Classes Present: {details['Classes Present']}")
+                st.write(f"  Total Classes: {details['Total Classes']}")
+        else:
+            st.write("No attendance data found.")
     else:
-        st.error("User data not found")
+        st.error("User data not found.")
 
-def display_academics():
-    st.subheader("Your Academic Performance")
+def display_marks(username):
     db = connect_db()
     user_col = db['students']
-    username = get_username()['username']
-    user = user_col.find_one({"USN": username})
+    user = user_col.find_one({'USN': username})
 
     if user:
-        st.write(f"Academic performance for {user['First Name']} {user['Last Name']}")
-        marks = user.get('Marks', {})
-        for subject, data in marks.items():
-            st.write(f"**{subject}**")
-            st.write(f"Marks Obtained: {data.get('Marks Obtained', 'N/A')}")
-            st.write(f"Total Marks: {data.get('Total Marks', 'N/A')}")
-            st.write(f"Percentage: {((data.get('Marks Obtained', 0) / data.get('Total Marks', 1)) * 100):.2f}%")
+        st.write(f"Academic Details for {username}")
+        marks_data = user.get('Marks', {})
+        
+        if marks_data:
+            for subject, details in marks_data.items():
+                st.write(f"{subject}:")
+                st.write(f"  Marks Obtained: {details['Marks Obtained']}")
+                st.write(f"  Total Marks: {details['Total Marks']}")
+        else:
+            st.write("No marks data found.")
     else:
-        st.error("User data not found")
+        st.error("User data not found.")
 
-def display_fees():
-    st.subheader("Your Fee Status")
+def display_fees(username):
     db = connect_db()
     user_col = db['students']
-    username = get_username()['username']
-    user = user_col.find_one({"USN": username})
+    user = user_col.find_one({'USN': username})
 
     if user:
-        st.write(f"Fee status for {user['First Name']} {user['Last Name']}")
-        fees = user.get('Fees', {})
-        st.write(f"Fee Status: {fees.get('Status', 'N/A')}")
+        st.write(f"Fees Details for {username}")
+        fees_data = user.get('Fees', {})
+        
+        if fees_data:
+            st.write(f"Fees Status: {fees_data.get('Status', 'N/A')}")
+        else:
+            st.write("No fees data found.")
     else:
-        st.error("User data not found")
+        st.error("User data not found.")
 
 def display_events():
     st.subheader("Events")
@@ -316,7 +312,7 @@ def display_events():
         st.image(image, caption="Event Poster")
     except FileNotFoundError:
         st.error("Event poster image not found.")
-    st.markdown("[Click here for event details](https://www.bnmit.org/event/ibm-hackathon/)")
+    st.markdown("[Click here for event details](https://event-details-link)")
 
 if __name__ == "__main__":
     main()
