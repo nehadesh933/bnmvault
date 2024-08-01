@@ -1,0 +1,153 @@
+[{
+  "_id": {
+    "$oid": "64cb95c5fdb3b4775911be19"
+  },
+  "Username": "admin",
+  "Password": "admin123"
+},
+{
+  "_id": {
+    "$oid": "64cba487fed2ab1867977a97"
+  },
+  "USN": "1BG21CS057",
+  "Password": "abc",
+  "First Name": "Rakshitha",
+  "Last Name": "Raghuram",
+  "Age": "20",
+  "Gender": "Female",
+  "DOB": "2023-08-03",
+  "Email": "21cse007@bnmit.in",
+  "Attendance": {
+    "English": {
+      "Classes Present": 6,
+      "Total Classes": 7
+    },
+    "Math": {
+      "Classes Present": 5,
+      "Total Classes": 5
+    }
+  },
+  "Marks": {
+    "English": {
+      "Marks Obtained": 92,
+      "Total Marks": 100
+    },
+    "Operating System": {
+      "Marks Obtained": 93,
+      "Total Marks": 100
+    }
+  }
+},
+{
+  "_id": {
+    "$oid": "64d4601804a3b9dfd416f36a"
+  },
+  "USN": "1BG21CS051",
+  "Password": "def",
+  "First Name": "Neha",
+  "Last Name": "Deshpande",
+  "Age": "20",
+  "Gender": "Female",
+  "DOB": "2023-08-10",
+  "Email": "21cse051@bnmit.in",
+  "Marks": {
+    "Math": {
+      "Marks Obtained": 30,
+      "Total Marks": 30
+    }
+  }
+},
+{
+  "_id": {
+    "$oid": "64dc680bedb3eb3fcb673648"
+  },
+  "USN": "1BG21CS001",
+  "Password": "xyz",
+  "First Name": "Abhiram",
+  "Last Name": "BS",
+  "Age": "20",
+  "Gender": "Male",
+  "DOB": "2023-08-16",
+  "Email": "21cse001@bnmit.in",
+  "Attendance": {
+    "Operating System": {
+      "Classes Present": 2,
+      "Total Classes": 3
+    }
+  },
+  "Marks": {
+    "English": {
+      "Marks Obtained": 26,
+      "Total Marks": 30
+    }
+  }
+},
+{
+  "_id": {
+    "$oid": "64dc6d91edb3eb3fcb6736da"
+  },
+  "USN": "1BG21CS014",
+  "Password": "qwe",
+  "First Name": "Aryan",
+  "Last Name": "Patnaik",
+  "Age": "20",
+  "Gender": "male",
+  "DOB": "2023-08-16",
+  "Email": "21cse014@bnmit.in",
+  "Attendance": {
+    "Math": {
+      "Classes Present": 2,
+      "Total Classes": 3
+    }
+  }
+},
+{
+  "_id": {
+    "$oid": "64e646d46aff633ba0d9161b"
+  },
+  "USN": "1BG21CS053",
+  "Password": "km1",
+  "First Name": "Pranav",
+  "Last Name": "KM",
+  "Age": "20",
+  "Gender": "Male",
+  "DOB": "2023-09-07",
+  "Email": "21cse051@bnmit.in",
+  "Marks": {
+    "Operating System": {
+      "Marks Obtained": 26,
+      "Total Marks": 30
+    }
+  },
+  "Attendance": {
+    "Operating System": {
+      "Classes Present": 13,
+      "Total Classes": 15
+    }
+  }
+},
+{
+  "_id": {
+    "$oid": "64f55a3a9ee9b06913672670"
+  },
+  "USN": "1BG21CS007",
+  "Password": "asdf",
+  "First Name": "Alfiya",
+  "Last Name": "zoya",
+  "Age": "20",
+  "Gender": "Female",
+  "DOB": "2023-09-05",
+  "Email": "21cse008@bnmit.in",
+  "Attendance": {
+    "Operating System": {
+      "Classes Present": 6,
+      "Total Classes": 7
+    }
+  },
+  "Marks": {
+    "Math": {
+      "Marks Obtained": 45,
+      "Total Marks": 35
+    }
+  }
+}]
