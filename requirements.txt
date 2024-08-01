@@ -2,4 +2,4 @@ streamlit==1.24.0
 pandas==2.0.3
 altair==5.1.1
 pymongo==4.4.1
-Pillow==10.0.0
+Pillow==9.5.0  # Updated version to be compatible with Streamlit 1.24.0
