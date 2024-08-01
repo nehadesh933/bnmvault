@@ -115,7 +115,6 @@ def main():
 
 def render_login_page():
     db = connect_db()
-    user_collection = db.students
     st.title("Login Portal")
 
     login_option = st.radio("Select User Type", ["Student", "Admin"])
@@ -130,6 +129,7 @@ def render_login_page():
             if student_login(username, password):
                 st.session_state.username = username
                 st.session_state.login_status = 'Student'
+                st.experimental_set_query_params(login_status='Student')
                 st.experimental_rerun()
             else:
                 st.error("Invalid student credentials")
@@ -143,6 +143,7 @@ def render_login_page():
         if admin_submitted:
             if admin_login(admin_username, admin_password):
                 st.session_state.login_status = 'Admin'
+                st.experimental_set_query_params(login_status='Admin')
                 st.experimental_rerun()
             else:
                 st.error("Invalid admin credentials")
@@ -164,6 +165,7 @@ def render_admin_page():
     if st.sidebar.button("Logout"):
         st.session_state.login_status = None
         st.session_state.username = None
+        st.experimental_set_query_params(login_status=None)
         st.experimental_rerun()
 
 def search_by_usn():
@@ -217,6 +219,7 @@ def render_user_page():
         if logout_button:
             st.session_state.login_status = None
             st.session_state.username = None
+            st.experimental_set_query_params(login_status=None)
             st.experimental_rerun()
 
     if selected_option == "Attendance":
@@ -234,6 +237,7 @@ def display_attendance():
     st.subheader("Attendance")
     username = st.session_state.username
     user = user_col.find_one({"USN": username})
+
     if 'Attendance' in user:
         attendance = user['Attendance']
         if attendance:
