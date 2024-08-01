@@ -1,36 +1,54 @@
 import streamlit as st
+import pandas as pd
+import altair as alt
 import pymongo
 from PIL import Image
+from collections.abc import MutableMapping
+from collections import namedtuple
 
 st.title("BNM VAULT")
 
-# Function to connect to MongoDB Atlas
 def connect_db():
+    # Use the MongoDB Atlas connection string
     conn = pymongo.MongoClient("mongodb+srv://nehadesh2003:123@cluster.m0jtccy.mongodb.net/")
-    db = conn['bnmvault']
+    db = conn['bnmvault']  # Use the database name that matches your MongoDB Atlas setup
     return db
 
-# Initialize session state
-if 'login_status' not in st.session_state:
-    st.session_state.login_status = None
-if 'username' not in st.session_state:
-    st.session_state.username = None
+# Function to find the current user details and cache the result
+@st.cache_resource()
+def get_username():
+    return {'username': None}
 
-# Function for student login
+# Function to store the current user details
+def set_username(user):
+    username = get_username()
+    username['username'] = user
+
+# Function to check the login status and cache the result
+@st.cache_resource()
+def get_login_status():
+    return [False]
+
 def student_login(username, password):
     db = connect_db()
     user_collection = db.students
     user = user_collection.find_one({"USN": username, "Password": password})
-    return user is not None
 
-# Function for admin login
-def admin_login(username, password):
-    db = connect_db()
-    user_collection = db.students
-    user = user_collection.find_one({"Username": username})
-    return user and user.get('Password') == password
+    if user:
+        return 1
+    else:
+        return 0
 
-# Functions for various admin functionalities
+# Function to check admin login credentials
+def admin_login(user, username, password):
+    return username == user['Username'] and password == user['Password']
+
+def set_login_status(logged_in):
+    login_status = get_login_status()
+    login_status.clear()
+    login_status.append(logged_in)
+
+# Function to add a student
 def add_student():
     db = connect_db()
     user_col = db['students']
@@ -55,6 +73,7 @@ def add_student():
         else:
             st.error("User already exists.")
 
+# Function to add attendance
 def add_attendance():
     db = connect_db()
     user_col = db['students']
@@ -66,11 +85,11 @@ def add_attendance():
     classes_present = st.number_input("Classes Present", min_value=0)
     total_classes = st.number_input("Total Classes", min_value=0)
 
-    # Calculate attendance percentage
+    # Calculate attendance percentage based on classes present and total classes
     attendance_percentage = (classes_present / total_classes) * 100 if total_classes > 0 else 0
     st.write(f"Attendance Percentage: {attendance_percentage:.2f}%")
     num_absent = total_classes - classes_present
-    st.write(f"Total Classes Absent: {num_absent}")
+    st.write(f"Total Classes Absent: {num_absent: d}")
 
     add_attendance_button = st.button("Add Attendance")
 
@@ -84,6 +103,7 @@ def add_attendance():
         else:
             st.error("User does not exist.")
 
+# Function to add marks
 def add_marks():
     db = connect_db()
     user_col = db['students']
@@ -96,6 +116,7 @@ def add_marks():
     add_marks_button = st.button("Add Marks")
 
     if add_marks_button:
+        # Calculate percentage based on marks obtained and total marks
         user = user_col.find_one({"USN": student_usn})
         if user:
             user_col.update_one({"USN": student_usn},
@@ -106,15 +127,20 @@ def add_marks():
             st.error("User does not exist.")
 
 def main():
-    if st.session_state.login_status is None:
+    # Check if user is logged in
+    logged_in = get_login_status()[0]
+
+    # If the user is not logged in, show the login page
+    if not logged_in:
         render_login_page()
-    elif st.session_state.login_status == 'Student':
+    elif logged_in == 'Student':
         render_user_page()
-    elif st.session_state.login_status == 'Admin':
+    elif logged_in == 'Admin':
         render_admin_page()
 
 def render_login_page():
     db = connect_db()
+    user_collection = db.students
     st.title("Login Portal")
 
     login_option = st.radio("Select User Type", ["Student", "Admin"])
@@ -126,10 +152,11 @@ def render_login_page():
         submitted = st.button("Login")
 
         if submitted:
-            if student_login(username, password):
-                st.session_state.username = username
-                st.session_state.login_status = 'Student'
-                st.experimental_set_query_params(login_status='Student')
+            user = user_collection.find_one({"USN": username})
+            if user and student_login(username, password):
+                set_username(username)
+                set_login_status('Student')
+                st.experimental_rerun()
             else:
                 st.error("Invalid student credentials")
 
@@ -140,9 +167,11 @@ def render_login_page():
         admin_submitted = st.button("Login as Admin")
 
         if admin_submitted:
-            if admin_login(admin_username, admin_password):
-                st.session_state.login_status = 'Admin'
-                st.experimental_set_query_params(login_status='Admin')
+            user = user_collection.find_one({"Username": admin_username})
+            if user and admin_login(user, admin_username, admin_password):
+                st.success("Admin login successful!")
+                set_login_status('Admin')
+                st.experimental_rerun()
             else:
                 st.error("Invalid admin credentials")
 
@@ -160,10 +189,10 @@ def render_admin_page():
     elif selected_option == "Search by USN":
         search_by_usn()
 
+    # Logout button
     if st.sidebar.button("Logout"):
-        st.session_state.login_status = None
-        st.session_state.username = None
-        st.experimental_set_query_params(login_status=None)
+        set_login_status(False)
+        st.experimental_rerun()
 
 def search_by_usn():
     db = connect_db()
@@ -175,12 +204,12 @@ def search_by_usn():
         if user:
             st.subheader(f"Student details of {user['First Name']}")
             col1, col2 = st.columns(2)
-            col1.text_input("First Name", value=f"{user['First Name']}", disabled=True)
-            col2.text_input("Last Name", value=f"{user['Last Name']}", disabled=True)
-            col1.text_input("Age", value=f"{user['Age']}", disabled=True)
-            col2.text_input("Gender", value=f"{user['Gender']}", disabled=True)
-            col1.text_input("DOB", value=f"{user['DOB']}", disabled=True)
-            col2.text_input("Email", value=f"{user['Email']}", disabled=True)
+            col1.text_input(f"First Name", value=f"{user['First Name']}", disabled=True)
+            col2.text_input(f"Last Name", value=f"{user['Last Name']}", disabled=True)
+            col1.text_input(f"Age", value=f"{user['Age']}", disabled=True)
+            col2.text_input(f"Gender", value=f"{user['Gender']}", disabled=True)
+            col1.text_input(f"DOB", value=f"{user['DOB']}", disabled=True)
+            col2.text_input(f"Email", value=f"{user['Email']}", disabled=True)
         else:
             st.error("Student doesn't exist")
 
@@ -200,9 +229,11 @@ def render_user_page():
     )
 
     with st.sidebar:
-        username = st.session_state.username
+        # Create buttons for the dashboard
+        username = get_username()['username']
         user = user_col.find_one({'USN': username})
         
+        # Check if user data is available
         if user:
             st.header(f"Welcome, {user.get('First Name', 'Student')}")
         else:
@@ -214,10 +245,10 @@ def render_user_page():
         logout_button = st.button("Logout")
 
         if logout_button:
-            st.session_state.login_status = None
-            st.session_state.username = None
-            st.experimental_set_query_params(login_status=None)
+            set_login_status(False)
+            st.experimental_rerun()
 
+    # Content for each menu option
     if selected_option == "Attendance":
         display_attendance()
     elif selected_option == "Academics":
@@ -228,66 +259,63 @@ def render_user_page():
         display_events()
 
 def display_attendance():
+    st.subheader("Your Attendance")
     db = connect_db()
     user_col = db['students']
-    st.subheader("Attendance")
-    username = st.session_state.username
+    username = get_username()['username']
     user = user_col.find_one({"USN": username})
 
-    if 'Attendance' in user:
-        attendance = user['Attendance']
-        if attendance:
-            for subject, attn in attendance.items():
-                st.write(f"**{subject}:**")
-                st.write(f"Classes Present: {attn['Classes Present']}")
-                st.write(f"Total Classes: {attn['Total Classes']}")
-                if attn['Total Classes'] > 0:
-                    percentage = (attn['Classes Present'] / attn['Total Classes']) * 100
-                    st.write(f"Attendance Percentage: {percentage:.2f}%")
-                else:
-                    st.write("Attendance Percentage: N/A")
-        else:
-            st.write("No attendance records available.")
+    if user:
+        st.write(f"Attendance for {user['First Name']} {user['Last Name']}")
+        attendance = user.get('Attendance', {})
+        for subject, data in attendance.items():
+            st.write(f"**{subject}**")
+            st.write(f"Classes Present: {data.get('Classes Present', 'N/A')}")
+            st.write(f"Total Classes: {data.get('Total Classes', 'N/A')}")
+            st.write(f"Percentage: {((data.get('Classes Present', 0) / data.get('Total Classes', 1)) * 100):.2f}%")
     else:
-        st.write("No attendance records available.")
+        st.error("User data not found")
 
 def display_academics():
+    st.subheader("Your Academic Performance")
     db = connect_db()
     user_col = db['students']
-    st.subheader("Academics")
-    username = st.session_state.username
+    username = get_username()['username']
     user = user_col.find_one({"USN": username})
 
-    if 'Marks' in user:
-        academics = user['Marks']
-        if academics:
-            for subject, marks in academics.items():
-                st.write(f"**{subject}:**")
-                st.write(f"Marks Obtained: {marks['Marks Obtained']}")
-                st.write(f"Total Marks: {marks['Total Marks']}")
-                percentage = (marks['Marks Obtained'] / marks['Total Marks']) * 100
-                st.write(f"Percentage: {percentage:.2f}%")
-        else:
-            st.write("No academic records available.")
+    if user:
+        st.write(f"Academic performance for {user['First Name']} {user['Last Name']}")
+        marks = user.get('Marks', {})
+        for subject, data in marks.items():
+            st.write(f"**{subject}**")
+            st.write(f"Marks Obtained: {data.get('Marks Obtained', 'N/A')}")
+            st.write(f"Total Marks: {data.get('Total Marks', 'N/A')}")
+            st.write(f"Percentage: {((data.get('Marks Obtained', 0) / data.get('Total Marks', 1)) * 100):.2f}%")
     else:
-        st.write("No academic records available.")
+        st.error("User data not found")
 
 def display_fees():
+    st.subheader("Your Fee Status")
     db = connect_db()
     user_col = db['students']
-    st.subheader("Fees Status")
-    username = st.session_state.username
+    username = get_username()['username']
     user = user_col.find_one({"USN": username})
 
-    if user and 'Fees' in user:
-        st.write(f"Fees Status: {user['Fees'].get('Status', 'N/A')}")
+    if user:
+        st.write(f"Fee status for {user['First Name']} {user['Last Name']}")
+        fees = user.get('Fees', {})
+        st.write(f"Fee Status: {fees.get('Status', 'N/A')}")
     else:
-        st.write("No fee records available.")
+        st.error("User data not found")
 
 def display_events():
     st.subheader("Events")
-    image = Image.open("path/to/image.jpg")  # Update the image path
-    st.image(image, caption="Event Poster")
+    try:
+        image_path = "event_poster.jpg"  # Update the path to your actual image file
+        image = Image.open(image_path)
+        st.image(image, caption="Event Poster")
+    except FileNotFoundError:
+        st.error("Event poster image not found.")
     st.markdown("[Click here for event details](https://event-details-link)")
 
 if __name__ == "__main__":
