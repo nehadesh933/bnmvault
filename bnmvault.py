@@ -1,7 +1,6 @@
 import streamlit as st
 import pymongo
 from PIL import Image
-from datetime import datetime
 
 st.title("BNM VAULT")
 
@@ -11,22 +10,11 @@ def connect_db():
     db = conn['bnmvault']
     return db
 
-# Function to manage user session
-@st.experimental_singleton
-def get_username():
-    return {'username': None}
-
-@st.experimental_singleton
-def get_login_status():
-    return [False]
-
-def set_username(user):
-    username = get_username()
-    username['username'] = user
-
-def set_login_status(logged_in):
-    login_status = get_login_status()
-    login_status[0] = logged_in
+# Initialize session state
+if 'login_status' not in st.session_state:
+    st.session_state.login_status = None
+if 'username' not in st.session_state:
+    st.session_state.username = None
 
 # Function for student login
 def student_login(username, password):
@@ -36,8 +24,11 @@ def student_login(username, password):
     return user is not None
 
 # Function for admin login
-def admin_login(user, username, password):
-    return username == user['Username'] and password == user['Password']
+def admin_login(username, password):
+    db = connect_db()
+    user_collection = db.students
+    user = user_collection.find_one({"Username": username})
+    return user and user.get('Password') == password
 
 # Functions for various admin functionalities
 def add_student():
@@ -115,13 +106,11 @@ def add_marks():
             st.error("User does not exist.")
 
 def main():
-    logged_in = get_login_status()[0]
-
-    if not logged_in:
+    if st.session_state.login_status is None:
         render_login_page()
-    elif logged_in == 'Student':
+    elif st.session_state.login_status == 'Student':
         render_user_page()
-    elif logged_in == 'Admin':
+    elif st.session_state.login_status == 'Admin':
         render_admin_page()
 
 def render_login_page():
@@ -139,8 +128,8 @@ def render_login_page():
 
         if submitted:
             if student_login(username, password):
-                set_username(username)
-                set_login_status('Student')
+                st.session_state.username = username
+                st.session_state.login_status = 'Student'
                 st.experimental_rerun()
             else:
                 st.error("Invalid student credentials")
@@ -152,9 +141,8 @@ def render_login_page():
         admin_submitted = st.button("Login as Admin")
 
         if admin_submitted:
-            user = user_collection.find_one({"Username": admin_username})
-            if user and admin_login(user, admin_username, admin_password):
-                set_login_status('Admin')
+            if admin_login(admin_username, admin_password):
+                st.session_state.login_status = 'Admin'
                 st.experimental_rerun()
             else:
                 st.error("Invalid admin credentials")
@@ -174,7 +162,8 @@ def render_admin_page():
         search_by_usn()
 
     if st.sidebar.button("Logout"):
-        set_login_status(False)
+        st.session_state.login_status = None
+        st.session_state.username = None
         st.experimental_rerun()
 
 def search_by_usn():
@@ -212,7 +201,7 @@ def render_user_page():
     )
 
     with st.sidebar:
-        username = get_username()['username']
+        username = st.session_state.username
         user = user_col.find_one({'USN': username})
         
         if user:
@@ -226,7 +215,8 @@ def render_user_page():
         logout_button = st.button("Logout")
 
         if logout_button:
-            set_login_status(False)
+            st.session_state.login_status = None
+            st.session_state.username = None
             st.experimental_rerun()
 
     if selected_option == "Attendance":
@@ -242,7 +232,7 @@ def display_attendance():
     db = connect_db()
     user_col = db['students']
     st.subheader("Attendance")
-    username = get_username()['username']
+    username = st.session_state.username
     user = user_col.find_one({"USN": username})
     if 'Attendance' in user:
         attendance = user['Attendance']
@@ -265,7 +255,7 @@ def display_academics():
     db = connect_db()
     user_col = db['students']
     st.subheader("Academics")
-    username = get_username()['username']
+    username = st.session_state.username
     user = user_col.find_one({"USN": username})
 
     if 'Marks' in user:
@@ -286,7 +276,7 @@ def display_fees():
     db = connect_db()
     user_col = db['students']
     st.subheader("Fees Status")
-    username = get_username()['username']
+    username = st.session_state.username
     user = user_col.find_one({"USN": username})
 
     if user and 'Fees' in user:
