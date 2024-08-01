@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import pymongo
-from PIL import Image
 
 st.title("BNM VAULT")
 
@@ -94,6 +93,7 @@ def add_attendance():
                                 {'$set': {f'Attendance.{selected_subject}': {'Classes Present': classes_present,
                                                                              'Total Classes': total_classes}}})
             st.success("Attendance updated successfully!")
+            render_attendance_page(student_usn)  # Call the function to display attendance
         else:
             st.error("User does not exist.")
 
@@ -116,6 +116,7 @@ def add_marks():
                                 {'$set': {f'Marks.{selected_subject}': {'Marks Obtained': marks_obtained,
                                                                         'Total Marks': total_marks}}})
             st.success("Marks updated successfully!")
+            render_marks_page(student_usn)  # Call the function to display marks
         else:
             st.error("User does not exist.")
 
@@ -201,12 +202,12 @@ def search_by_usn():
             col1.text_input("DOB", value=f"{user['DOB']}", disabled=True)
             col2.text_input("Email", value=f"{user['Email']}", disabled=True)
         else:
-            st.error("Student doesn't exist")
+            st.error("Student does not exist")
 
 def render_user_page():
     db = connect_db()
     user_col = db['students']
-
+    
     st.markdown(
         """
     <style>
@@ -219,103 +220,88 @@ def render_user_page():
     )
 
     with st.sidebar:
-        username = get_username()['username']
-        user = user_col.find_one({'USN': username})
-        
-        if user:
-            st.header(f"Welcome, {user.get('First Name', 'Student')}")
-        else:
-            st.header("Welcome, User")
-
-        st.subheader("Your Dashboard")
+        st.header(f"Welcome, {user_col.find({'USN': get_username()['username']})[0]['First Name']}")
+        st.subheader(" Your Dashboard")
         menu_options = ["Attendance", "Academics", "Fees", "Events"]
         selected_option = st.sidebar.selectbox("Select an Option", menu_options)
         logout_button = st.button("Logout")
 
-        if logout_button:
-            set_login_status(False)
-            st.experimental_rerun()
-
     if selected_option == "Attendance":
-        display_attendance()
-
+        render_attendance_page(get_username()['username'])
     elif selected_option == "Academics":
-        display_academics()
-
+        render_marks_page(get_username()['username'])
     elif selected_option == "Fees":
-        display_fees()
-
+        render_fees_page()
     elif selected_option == "Events":
-        display_events()
+        st.write("Upcoming events will be listed here.")
 
-def display_attendance():
+    if logout_button:
+        set_login_status(False)
+        st.experimental_rerun()
+
+def render_attendance_page(username):
     db = connect_db()
     user_col = db['students']
-    st.subheader("Attendance Details")
+    user = user_col.find_one({"USN": username})
+    
+    if user:
+        st.subheader("Attendance Records")
+        attendance_data = user.get('Attendance', {})
+        if not attendance_data:
+            st.write("No attendance records found.")
+        else:
+            data = []
+            for subject, records in attendance_data.items():
+                data.append({
+                    'Subject': subject,
+                    'Classes Present': records.get('Classes Present', 0),
+                    'Total Classes': records.get('Total Classes', 0)
+                })
+            df = pd.DataFrame(data)
+            chart = alt.Chart(df).mark_bar().encode(
+                x='Subject:N',
+                y='Classes Present:Q',
+                color='Subject:N'
+            ).properties(
+                title='Classes Present per Subject'
+            )
+            st.altair_chart(chart, use_container_width=True)
+    else:
+        st.error("User does not exist.")
 
-    username = get_username()['username']
+def render_marks_page(username):
+    db = connect_db()
+    user_col = db['students']
     user = user_col.find_one({"USN": username})
 
     if user:
-        attendance = user.get('Attendance', {})
-        if attendance:
-            for subject, details in attendance.items():
-                st.write(f"{subject}:")
-                st.write(f"Classes Present: {details['Classes Present']}")
-                st.write(f"Total Classes: {details['Total Classes']}")
-                st.write("---")
+        st.subheader("Marks Records")
+        marks_data = user.get('Marks', {})
+        if not marks_data:
+            st.write("No marks records found.")
         else:
-            st.write("No attendance data available.")
+            data = []
+            for subject, records in marks_data.items():
+                data.append({
+                    'Subject': subject,
+                    'Marks Obtained': records.get('Marks Obtained', 0),
+                    'Total Marks': records.get('Total Marks', 0)
+                })
+            df = pd.DataFrame(data)
+            chart = alt.Chart(df).mark_bar().encode(
+                x='Subject:N',
+                y='Marks Obtained:Q',
+                color='Subject:N'
+            ).properties(
+                title='Marks Obtained per Subject'
+            )
+            st.altair_chart(chart, use_container_width=True)
     else:
-        st.write("User not found.")
+        st.error("User does not exist.")
 
-def display_academics():
-    db = connect_db()
-    user_col = db['students']
-    st.subheader("Academic Details")
-
-    username = get_username()['username']
-    user = user_col.find_one({"USN": username})
-
-    if user:
-        marks = user.get('Marks', {})
-        if marks:
-            for subject, details in marks.items():
-                st.write(f"{subject}:")
-                st.write(f"Marks Obtained: {details['Marks Obtained']}")
-                st.write(f"Total Marks: {details['Total Marks']}")
-                st.write("---")
-        else:
-            st.write("No academic data available.")
-    else:
-        st.write("User not found.")
-
-def display_fees():
-    db = connect_db()
-    user_col = db['students']
-    st.subheader("Fees Details")
-
-    username = get_username()['username']
-    user = user_col.find_one({"USN": username})
-
-    if user:
-        fees = user.get('Fees', {})
-        if fees:
-            st.write(f"Fees Status: {fees.get('Status', 'Pending')}")
-        else:
-            st.write("No fees data available.")
-    else:
-        st.write("User not found.")
-
-def display_events():
-    st.subheader("Events")
-    try:
-        image_path = "images/event_poster.jpeg"  # Update the path to your actual image file
-        image = Image.open(image_path)
-        st.image(image, caption="Event Poster")
-    except FileNotFoundError:
-        st.error("Event poster image not found.")
-    st.markdown("[Click here for event details](https://event-details-link)")
+def render_fees_page():
+    # Add your implementation here if needed
+    pass
 
 if __name__ == "__main__":
     main()
