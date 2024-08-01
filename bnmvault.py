@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import pymongo
-from PIL import Image
 
 st.title("BNM VAULT")
 
@@ -56,7 +55,6 @@ def add_student():
     student_gen = st.text_input("Gender")
     student_dob = st.date_input("DOB")
     student_mail = st.text_input("Email")
-    fees_status = st.selectbox("Fees Status", ["Pending", "Paid"])
     add_student_button = st.button("Add Student")
 
     if add_student_button:
@@ -64,8 +62,7 @@ def add_student():
         if not user:
             user_col.insert_one({"USN": student_usn, "Password": student_pswd, "First Name": student_FName,
                                  "Last Name": student_Lname, "Age": student_age, "Gender": student_gen,
-                                 "DOB": str(student_dob), "Email": student_mail, "Fees": {"Status": fees_status}})
-
+                                 "DOB": str(student_dob), "Email": student_mail, "Fees": {"Status": "Pending"}})
             st.success("Student added successfully!")
         else:
             st.error("User already exists.")
@@ -123,67 +120,6 @@ def add_marks():
         else:
             st.error("User does not exist.")
 
-# Function to render fees page
-def render_fees_page():
-    db = connect_db()
-    user_col = db['students']
-    username = get_username()['username']
-    user = user_col.find_one({"USN": username})
-
-    if user:
-        st.subheader("Fees Status")
-        fees_status = user.get('Fees', {}).get('Status', 'Pending')
-        st.write(f"Current Fees Status: {fees_status}")
-    else:
-        st.error("User does not exist.")
-
-# Function to add and manage events
-def manage_events():
-    db = connect_db()
-    event_col = db['events']
-    st.subheader("Manage Events")
-    event_title = st.text_input("Event Title")
-    event_date = st.date_input("Event Date")
-    event_details = st.text_area("Event Details")
-    event_poster = st.file_uploader("Upload Event Poster", type=["jpg", "jpeg", "png"])
-    event_link = st.text_input("Event Link")
-    add_event_button = st.button("Add Event")
-
-    if add_event_button:
-        if event_poster:
-            image = Image.open(event_poster)
-            poster_url = upload_image_to_cloud(image)  # Placeholder for uploading image function
-        else:
-            poster_url = ""
-
-        event_col.insert_one({
-            "Title": event_title,
-            "Date": str(event_date),
-            "Details": event_details,
-            "Poster URL": poster_url,
-            "Link": event_link
-        })
-        st.success("Event added successfully!")
-
-def upload_image_to_cloud(image):
-    # Implement your cloud image upload logic here
-    return "URL to the uploaded image"
-
-def render_events_page():
-    db = connect_db()
-    event_col = db['events']
-    st.subheader("Upcoming Events")
-
-    events = event_col.find()
-    for event in events:
-        st.write(f"**Title:** {event.get('Title', 'N/A')}")
-        st.write(f"**Date:** {event.get('Date', 'N/A')}")
-        st.write(f"**Details:** {event.get('Details', 'N/A')}")
-        if event.get('Poster URL'):
-            st.image(event.get('Poster URL'), caption='Event Poster', use_column_width=True)
-        if event.get('Link'):
-            st.write(f"[More Details]({event.get('Link')})")
-
 def main():
     logged_in = get_login_status()[0]
 
@@ -233,35 +169,139 @@ def render_login_page():
 
 def render_admin_page():
     st.title("Admin Dashboard")
-    menu = st.sidebar.radio("Select Option", ["Add Student", "Add Attendance", "Add Marks", "Manage Events", "View Events", "View Attendance", "View Marks", "View Fees"])
+    menu_options = ["Add Student", "Add Attendance", "Add Marks", "Search by USN"]
+    selected_option = st.sidebar.selectbox("Select an Option", menu_options)
 
-    if menu == "Add Student":
+    if selected_option == "Add Student":
         add_student()
-    elif menu == "Add Attendance":
+    elif selected_option == "Add Attendance":
         add_attendance()
-    elif menu == "Add Marks":
+    elif selected_option == "Add Marks":
         add_marks()
-    elif menu == "Manage Events":
-        manage_events()
-    elif menu == "View Events":
-        render_events_page()
-    elif menu == "View Attendance":
-        render_attendance_page(get_username()['username'])
-    elif menu == "View Marks":
-        render_marks_page(get_username()['username'])
-    elif menu == "View Fees":
-        render_fees_page()
+    elif selected_option == "Search by USN":
+        search_by_usn()
+
+    if st.sidebar.button("Logout"):
+        set_login_status(False)
+        st.experimental_rerun()
+
+def search_by_usn():
+    db = connect_db()
+    user_col = db['students']
+    usn = st.text_input("Enter USN to search")
+    submit = st.button("Search")
+    if submit:
+        user = user_col.find_one({"USN": usn})
+        if user:
+            st.subheader(f"Student details of {user['First Name']}")
+            col1, col2 = st.columns(2)
+            col1.text_input("First Name", value=f"{user['First Name']}", disabled=True)
+            col2.text_input("Last Name", value=f"{user['Last Name']}", disabled=True)
+            col1.text_input("Age", value=f"{user['Age']}", disabled=True)
+            col2.text_input("Gender", value=f"{user['Gender']}", disabled=True)
+            col1.text_input("DOB", value=f"{user['DOB']}", disabled=True)
+            col2.text_input("Email", value=f"{user['Email']}", disabled=True)
+        else:
+            st.error("Student does not exist")
 
 def render_user_page():
-    st.title("Student Dashboard")
-    menu = st.sidebar.radio("Select Option", ["View Attendance", "View Marks", "View Fees"])
+    db = connect_db()
+    user_col = db['students']
+    
+    st.markdown(
+        """
+    <style>
+    section[data-testid="stSidebar"] div.stButton button {
+    width: 300px;
+    }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
 
-    if menu == "View Attendance":
+    with st.sidebar:
+        st.header(f"Welcome, {user_col.find({'USN': get_username()['username']})[0]['First Name']}")
+        st.subheader(" Your Dashboard")
+        menu_options = ["Attendance", "Academics", "Fees", "Events"]
+        selected_option = st.sidebar.selectbox("Select an Option", menu_options)
+        logout_button = st.button("Logout")
+
+    if selected_option == "Attendance":
         render_attendance_page(get_username()['username'])
-    elif menu == "View Marks":
+    elif selected_option == "Academics":
         render_marks_page(get_username()['username'])
-    elif menu == "View Fees":
+    elif selected_option == "Fees":
         render_fees_page()
+    elif selected_option == "Events":
+        st.write("Upcoming events will be listed here.")
+
+    if logout_button:
+        set_login_status(False)
+        st.experimental_rerun()
+
+def render_attendance_page(username):
+    db = connect_db()
+    user_col = db['students']
+    user = user_col.find_one({"USN": username})
+    
+    if user:
+        st.subheader("Attendance Records")
+        attendance_data = user.get('Attendance', {})
+        if not attendance_data:
+            st.write("No attendance records found.")
+        else:
+            data = []
+            for subject, records in attendance_data.items():
+                data.append({
+                    'Subject': subject,
+                    'Classes Present': records.get('Classes Present', 0),
+                    'Total Classes': records.get('Total Classes', 0)
+                })
+            df = pd.DataFrame(data)
+            chart = alt.Chart(df).mark_bar().encode(
+                x='Subject:N',
+                y='Classes Present:Q',
+                color='Subject:N'
+            ).properties(
+                title='Classes Present per Subject'
+            )
+            st.altair_chart(chart, use_container_width=True)
+    else:
+        st.error("User does not exist.")
+
+def render_marks_page(username):
+    db = connect_db()
+    user_col = db['students']
+    user = user_col.find_one({"USN": username})
+
+    if user:
+        st.subheader("Marks Records")
+        marks_data = user.get('Marks', {})
+        if not marks_data:
+            st.write("No marks records found.")
+        else:
+            data = []
+            for subject, records in marks_data.items():
+                data.append({
+                    'Subject': subject,
+                    'Marks Obtained': records.get('Marks Obtained', 0),
+                    'Total Marks': records.get('Total Marks', 0)
+                })
+            df = pd.DataFrame(data)
+            chart = alt.Chart(df).mark_bar().encode(
+                x='Subject:N',
+                y='Marks Obtained:Q',
+                color='Subject:N'
+            ).properties(
+                title='Marks Obtained per Subject'
+            )
+            st.altair_chart(chart, use_container_width=True)
+    else:
+        st.error("User does not exist.")
+
+def render_fees_page():
+    # Add your implementation here if needed
+    pass
 
 if __name__ == "__main__":
     main()
