@@ -130,7 +130,6 @@ def render_login_page():
                 st.session_state.username = username
                 st.session_state.login_status = 'Student'
                 st.experimental_set_query_params(login_status='Student')
-                st.experimental_rerun()
             else:
                 st.error("Invalid student credentials")
 
@@ -144,7 +143,6 @@ def render_login_page():
             if admin_login(admin_username, admin_password):
                 st.session_state.login_status = 'Admin'
                 st.experimental_set_query_params(login_status='Admin')
-                st.experimental_rerun()
             else:
                 st.error("Invalid admin credentials")
 
@@ -166,7 +164,6 @@ def render_admin_page():
         st.session_state.login_status = None
         st.session_state.username = None
         st.experimental_set_query_params(login_status=None)
-        st.experimental_rerun()
 
 def search_by_usn():
     db = connect_db()
@@ -220,7 +217,6 @@ def render_user_page():
             st.session_state.login_status = None
             st.session_state.username = None
             st.experimental_set_query_params(login_status=None)
-            st.experimental_rerun()
 
     if selected_option == "Attendance":
         display_attendance()
