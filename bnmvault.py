@@ -169,7 +169,7 @@ def render_login_page():
 
 def render_admin_page():
     st.title("Admin Dashboard")
-    menu_options = ["Add Student", "Add Attendance", "Add Marks", "Search by USN"]
+    menu_options = ["Add Student", "Add Attendance", "Add Marks", "Search by USN", "Add Fees Status"]
     selected_option = st.sidebar.selectbox("Select an Option", menu_options)
 
     if selected_option == "Add Student":
@@ -180,6 +180,8 @@ def render_admin_page():
         add_marks()
     elif selected_option == "Search by USN":
         search_by_usn()
+    elif selected_option == "Add Fees Status":
+        render_fees_page
 
     if st.sidebar.button("Logout"):
         set_login_status(False)
