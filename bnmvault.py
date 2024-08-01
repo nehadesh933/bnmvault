@@ -7,8 +7,9 @@ from PIL import Image
 st.title("BNM VAULT")
 
 def connect_db():
-    conn = pymongo.MongoClient("mongodb://localhost:27017/")
-    db = conn['bnmvault']
+    # Use the MongoDB Atlas connection string
+    conn = pymongo.MongoClient("mongodb+srv://nehadesh2003:TIGBTBDOML@cluster0.zuw3ibr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+    db = conn['bnmvault']  # Use the database name that matches your MongoDB Atlas setup
     return db
 
 # Function to find the current user details and cache the result
@@ -124,7 +125,6 @@ def add_marks():
             st.error("User does not exist.")
 
 def main():
-    connect_db()
     # Check if user is logged in
     logged_in = get_login_status()[0]
 
@@ -242,125 +242,87 @@ def render_user_page():
         selected_option = st.sidebar.selectbox("Select an Option", menu_options)
         logout_button = st.button("Logout")
 
+        if logout_button:
+            set_login_status(False)
+            st.experimental_rerun()
+
     if selected_option == "Attendance":
-        render_attendance_page(user_col)
+        display_attendance()
+
     elif selected_option == "Academics":
-        render_academic_results_page(user_col)
+        display_academics()
+
     elif selected_option == "Fees":
-        render_fees_page(user_col)
+        display_fees()
+
     elif selected_option == "Events":
-        render_events_page()
+        display_events()
 
-    if logout_button:
-        set_login_status(False)
-        st.experimental_rerun()
-
-def render_attendance_page(user_col):
-    st.title("Attendance")
-    usn = get_username()['username']
-    user = user_col.find_one({"USN": usn})
-
-    if user:
-        if "Attendance" in user:
-            attendance_data = user["Attendance"]
-            st.subheader("Attendance Details")
-
-            # Create a DataFrame from the attendance data
-            attendance_df = pd.DataFrame(attendance_data).T
-            st.dataframe(attendance_df)
-
-            attendance_summary = {
-                subject: (attendance_info['Classes Present'] / attendance_info['Total Classes']) * 100
-                for subject, attendance_info in attendance_data.items()
-            }
-
-            attendance_df['Attendance Percentage'] = attendance_df.apply(
-                lambda row: (row['Classes Present'] / row['Total Classes']) * 100, axis=1)
-
-            # Display the attendance summary chart
-            st.subheader("Attendance Summary")
-            attendance_summary_chart = alt.Chart(attendance_df.reset_index()).mark_bar().encode(
-                x='index',
-                y='Attendance Percentage',
-                tooltip=['index', 'Classes Present', 'Total Classes', 'Attendance Percentage']
-            )
-            st.altair_chart(attendance_summary_chart, use_container_width=True)
-
-            total_classes_present = sum(info['Classes Present'] for info in attendance_data.values())
-            total_classes = sum(info['Total Classes'] for info in attendance_data.values())
-            total_attendance_percentage = (total_classes_present / total_classes) * 100
-
-            st.write(f"Overall Attendance Percentage: {total_attendance_percentage:.2f}%")
+def display_attendance():
+    db = connect_db()
+    user_col = db['students']
+    st.subheader("Attendance")
+    username = get_username()['username']
+    user = user_col.find_one({"USN": username})
+    # Check if attendance data is available for the user
+    if 'Attendance' in user:
+        attendance = user['Attendance']
+        if attendance:
+            # Display attendance details for each subject
+            for subject, attn in attendance.items():
+                st.write(f"**{subject}:**")
+                st.write(f"Classes Present: {attn['Classes Present']}")
+                st.write(f"Total Classes: {attn['Total Classes']}")
+                if attn['Total Classes'] > 0:
+                    percentage = (attn['Classes Present'] / attn['Total Classes']) * 100
+                    st.write(f"Attendance Percentage: {percentage:.2f}%")
+                else:
+                    st.write("Attendance Percentage: N/A")
         else:
-            st.warning("No attendance data available.")
+            st.write("No attendance records available.")
     else:
-        st.error("User does not exist.")
+        st.write("No attendance records available.")
 
-def render_academic_results_page(user_col):
-    st.title("Academic Results")
-    usn = get_username()['username']
-    user = user_col.find_one({"USN": usn})
+def display_academics():
+    db = connect_db()
+    user_col = db['students']
+    st.subheader("Academics")
+    username = get_username()['username']
+    user = user_col.find_one({"USN": username})
 
-    if user:
-        if "Marks" in user:
-            marks_data = user["Marks"]
-            st.subheader("Marks Details")
-
-            # Create a DataFrame from the marks data
-            marks_df = pd.DataFrame(marks_data).T
-            st.dataframe(marks_df)
-
-            # Add a percentage column to the marks DataFrame
-            marks_df['Percentage'] = marks_df.apply(
-                lambda row: (row['Marks Obtained'] / row['Total Marks']) * 100, axis=1)
-
-            # Display the marks chart
-            st.subheader("Marks Summary")
-            marks_summary_chart = alt.Chart(marks_df.reset_index()).mark_bar().encode(
-                x='index',
-                y='Percentage',
-                tooltip=['index', 'Marks Obtained', 'Total Marks', 'Percentage']
-            )
-            st.altair_chart(marks_summary_chart, use_container_width=True)
-
-            # Calculate the total percentage
-            total_marks_obtained = sum(info['Marks Obtained'] for info in marks_data.values())
-            total_marks = sum(info['Total Marks'] for info in marks_data.values())
-            total_percentage = (total_marks_obtained / total_marks) * 100
-
-            st.write(f"Overall Percentage: {total_percentage:.2f}%")
+    if 'Marks' in user:
+        academics = user['Marks']
+        if academics:
+            # Display academic details for each subject
+            for subject, marks in academics.items():
+                st.write(f"**{subject}:**")
+                st.write(f"Marks Obtained: {marks['Marks Obtained']}")
+                st.write(f"Total Marks: {marks['Total Marks']}")
+                percentage = (marks['Marks Obtained'] / marks['Total Marks']) * 100
+                st.write(f"Percentage: {percentage:.2f}%")
         else:
-            st.warning("No academic results available.")
+            st.write("No academic records available.")
     else:
-        st.error("User does not exist.")
+        st.write("No academic records available.")
 
-def render_fees_page(user_col):
-    st.title("Fees")
-    usn = get_username()['username']
-    user = user_col.find_one({"USN": usn})
+def display_fees():
+    db = connect_db()
+    user_col = db['students']
+    st.subheader("Fees Status")
+    username = get_username()['username']
+    user = user_col.find_one({"USN": username})
 
-    if user:
-        st.subheader("Fees Details")
-        fees_status = user.get("Fees", {}).get("Status", "Pending")
-        st.write(f"Fees Status: {fees_status}")
+    if user and 'Fees' in user:
+        # Display fee status
+        st.write(f"Fees Status: {user['Fees'].get('Status', 'N/A')}")
     else:
-        st.error("User does not exist.")
+        st.write("No fee records available.")
 
-def render_events_page():
-    st.title("Events")
-    st.subheader("Upcoming Events")
-
-    events = [
-        {"name": "Cultural Fest", "date": "2024-08-15", "description": "A celebration of cultural diversity with performances and activities."},
-        {"name": "Tech Symposium", "date": "2024-09-10", "description": "Showcase of innovative tech projects by students."},
-        {"name": "Sports Meet", "date": "2024-10-05", "description": "Inter-college sports competitions."}
-    ]
-
-    for event in events:
-        st.write(f"**{event['name']}**")
-        st.write(f"**Date:** {event['date']}")
-        st.write(f"**Description:** {event['description']}")
-        st.markdown("---")
+def display_events():
+    st.subheader("Events")
+    image = Image.open("/path/to/image.jpg")
+    st.image(image, caption="Event Poster")
+    st.markdown("[Click here for event details](https://event-details-link)")
 
 if __name__ == "__main__":
     main()
