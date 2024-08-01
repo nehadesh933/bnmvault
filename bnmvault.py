@@ -8,7 +8,7 @@ st.title("BNM VAULT")
 
 def connect_db():
     # Use the MongoDB Atlas connection string
-    conn = pymongo.MongoClient("mongodb+srv://nehadesh2003:TIGBTBDOML@cluster0.zuw3ibr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+    conn = pymongo.MongoClient("mongodb+srv://nehadesh2003:mangocluster6@cluster0.zuw3ibr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
     db = conn['bnmvault']  # Use the database name that matches your MongoDB Atlas setup
     return db
 
