@@ -311,7 +311,7 @@ def display_fees():
 def display_events():
     st.subheader("Events")
     try:
-        image_path = "event_poster.jpg"  # Update the path to your actual image file
+        image_path = "event_poster.jpeg"  # Update the path to your actual image file
         image = Image.open(image_path)
         st.image(image, caption="Event Poster")
     except FileNotFoundError:
