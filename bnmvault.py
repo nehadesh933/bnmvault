@@ -3,6 +3,9 @@ import pandas as pd
 import altair as alt
 import pymongo
 from PIL import Image
+from collections.abc import MutableMapping
+from collections import namedtuple
+
 
 st.title("BNM VAULT")
 
