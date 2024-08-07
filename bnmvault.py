@@ -120,6 +120,23 @@ def add_marks():
         else:
             st.error("User does not exist.")
 
+def add_event():
+    db = connect_db()
+    event_col = db['events']
+    st.subheader("Add Event")
+    event_name = st.text_input("Event Name")
+    event_poster = st.file_uploader("Upload Event Poster (JPG format)", type=["jpg"])
+
+    add_event_button = st.button("Add Event")
+
+    if add_event_button:
+        if event_name and event_poster:
+            poster_file = event_poster.read()
+            event_col.insert_one({"Event Name": event_name, "Event Poster": poster_file})
+            st.success("Event added successfully!")
+        else:
+            st.error("Please provide both event name and poster.")
+
 def main():
     logged_in = get_login_status()[0]
 
@@ -222,7 +239,7 @@ def render_user_page():
     )
 
     with st.sidebar:
-        st.header(f"Welcome, {user_col.find({'USN': get_username()['username']})[0]['First Name']}")
+        st.header(f"Welcome, {user_col.find_one({'USN': get_username()['username']})['First Name']}")
         st.subheader(" Your Dashboard")
         menu_options = ["Attendance", "Academics", "Fees", "Events"]
         selected_option = st.sidebar.selectbox("Select an Option", menu_options)
@@ -235,7 +252,7 @@ def render_user_page():
     elif selected_option == "Fees":
         render_fees_page(get_username()['username'])
     elif selected_option == "Events":
-        st.write("Display events here")
+        add_event()
 
     if logout_button:
         set_login_status(False)
