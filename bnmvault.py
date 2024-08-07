@@ -137,6 +137,24 @@ def add_event():
         else:
             st.error("Please provide both event name and poster.")
 
+def render_events_page():
+    db = connect_db()
+    event_col = db['events']
+    st.subheader("Upcoming Events")
+
+    # Fetch all events from the database
+    events = list(event_col.find({}))
+
+    if not events:
+        st.info("No upcoming events.")
+        return
+
+    for event in events:
+        st.write(f"**Event Name:** {event['Event Name']}")
+        if 'Event Poster' in event:
+            poster_file = event['Event Poster']
+            st.image(poster_file, use_column_width=True)
+        st.write("---")
 
 def main():
     logged_in = get_login_status()[0]
@@ -253,7 +271,7 @@ def render_user_page():
     elif selected_option == "Fees":
         render_fees_page(get_username()['username'])
     elif selected_option == "Events":
-        add_event()
+        render_events_page()
 
     if logout_button:
         set_login_status(False)
