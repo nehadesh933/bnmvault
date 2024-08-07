@@ -3,46 +3,102 @@ import pandas as pd
 import altair as alt
 import pymongo
 
-st.title("BNM VAULT")
-
+# Connect to MongoDB Atlas
 def connect_db():
-    """Connect to MongoDB Atlas."""
     conn = pymongo.MongoClient("mongodb+srv://nehadesh2003:123@cluster.m0jtccy.mongodb.net/")
     db = conn['bnmvault']
     return db
 
-# Function to find the current user details and cache the result
-@st.cache_resource()
-def get_username():
-    return {'username': None}
+# Function to render the login page
+def render_login_page():
+    db = connect_db()
+    user_collection = db.students
+    st.title("Login Portal")
 
-# Function to store the current user details
-def set_username(user):
-    username = get_username()
-    username['username'] = user
+    login_option = st.radio("Select User Type", ["Student", "Admin"])
 
-# Function to check the login status and cache the result
-@st.cache_resource()
-def get_login_status():
-    return [False]
+    if login_option == "Student":
+        st.subheader("Student Login")
+        username = st.text_input("USN")
+        password = st.text_input("Password", type="password")
+        submitted = st.button("Login")
 
+        if submitted:
+            user = user_collection.find_one({"USN": username})
+            if user and student_login(username, password):
+                set_username(username)
+                set_login_status('Student')
+                st.experimental_rerun()
+            else:
+                st.error("Invalid student credentials")
+
+    elif login_option == "Admin":
+        st.subheader("Admin Login")
+        admin_username = st.text_input("Admin Username")
+        admin_password = st.text_input("Admin Password", type="password")
+        admin_submitted = st.button("Login as Admin")
+
+        if admin_submitted:
+            user = user_collection.find_one({"Username": admin_username})
+            if user and admin_login(user, admin_username, admin_password):
+                set_login_status('Admin')
+                st.experimental_rerun()
+            else:
+                st.error("Invalid admin credentials")
+
+# Function to check student login credentials
 def student_login(username, password):
     db = connect_db()
     user_collection = db.students
     user = user_collection.find_one({"USN": username, "Password": password})
-
-    return 1 if user else 0
+    return bool(user)
 
 # Function to check admin login credentials
 def admin_login(user, username, password):
     return username == user['Username'] and password == user['Password']
 
-def set_login_status(logged_in):
-    login_status = get_login_status()
-    login_status.clear()
-    login_status.append(logged_in)
+def set_login_status(status):
+    st.session_state['login_status'] = status
 
-# Function to add a student
+def get_login_status():
+    return st.session_state.get('login_status', '')
+
+def render_admin_page():
+    st.title("Admin Dashboard")
+    menu_option = st.sidebar.selectbox("Menu", ["Add Student", "Add Attendance", "Add Marks", "Add Event", "View Events", "Analyze Correlation"])
+
+    if menu_option == "Add Student":
+        add_student()
+    elif menu_option == "Add Attendance":
+        add_attendance()
+    elif menu_option == "Add Marks":
+        add_marks()
+    elif menu_option == "Add Event":
+        add_event()
+    elif menu_option == "View Events":
+        render_events_page()
+    elif menu_option == "Analyze Correlation":
+        username = get_username()
+        analyze_correlation(username)
+
+def render_user_page():
+    st.title("Student Dashboard")
+    username = get_username()
+    menu_option = st.sidebar.selectbox("Menu", ["View Attendance", "View Marks", "Analyze Correlation"])
+
+    if menu_option == "View Attendance":
+        render_attendance_page(username)
+    elif menu_option == "View Marks":
+        render_marks_page(username)
+    elif menu_option == "Analyze Correlation":
+        analyze_correlation(username)
+
+def get_username():
+    return st.session_state.get('username', '')
+
+def set_username(user):
+    st.session_state['username'] = user
+
 def add_student():
     db = connect_db()
     user_col = db['students']
@@ -67,7 +123,6 @@ def add_student():
         else:
             st.error("User already exists.")
 
-# Function to add attendance
 def add_attendance():
     db = connect_db()
     user_col = db['students']
@@ -97,7 +152,6 @@ def add_attendance():
         else:
             st.error("User does not exist.")
 
-# Function to add marks
 def add_marks():
     db = connect_db()
     user_col = db['students']
@@ -142,7 +196,6 @@ def render_events_page():
     event_col = db['events']
     st.subheader("Upcoming Events")
 
-    # Fetch all events from the database
     events = list(event_col.find({}))
 
     if not events:
@@ -160,7 +213,6 @@ def analyze_correlation(usn):
     db = connect_db()
     user_col = db['students']
 
-    # Fetch attendance data
     user = user_col.find_one({"USN": usn})
     attendance = user.get("Attendance", {})
     marks = user.get("Marks", {})
@@ -169,7 +221,6 @@ def analyze_correlation(usn):
         st.info("Insufficient data for correlation analysis.")
         return
 
-    # Prepare data for correlation analysis
     subjects = list(attendance.keys())
     attendance_data = []
     marks_data = []
@@ -187,103 +238,26 @@ def analyze_correlation(usn):
             attendance_data.append(attendance_percentage)
             marks_data.append(marks_percentage)
 
-    if not attendance_data or not marks_data:
-        st.info("No data available for correlation analysis.")
-        return
+    if len(attendance_data) > 1 and len(marks_data) > 1:
+        df = pd.DataFrame({
+            'Attendance': attendance_data,
+            'Marks': marks_data
+        })
 
-    # Calculate correlation
-    df = pd.DataFrame({
-        'Attendance %': attendance_data,
-        'Marks %': marks_data
-    })
-    correlation = df.corr().iloc[0, 1]
+        correlation = df.corr().iloc[0, 1]
 
-    st.subheader("Correlation Analysis")
-    st.write(f"Correlation between Attendance Percentage and Marks Percentage: {correlation:.2f}")
+        st.write(f"Correlation between Attendance and Marks: {correlation:.2f}")
 
-    if correlation > 0:
-        st.write("There is a positive correlation between attendance and marks.")
-    elif correlation < 0:
-        st.write("There is a negative correlation between attendance and marks.")
+        # Plotting correlation using Altair
+        chart = alt.Chart(df).mark_point().encode(
+            x='Attendance',
+            y='Marks',
+            tooltip=['Attendance', 'Marks']
+        ).properties(title='Correlation between Attendance and Marks')
+
+        st.altair_chart(chart, use_container_width=True)
     else:
-        st.write("There is no significant correlation between attendance and marks.")
-
-def main():
-    logged_in = get_login_status()[0]
-
-    if not logged_in:
-        render_login_page()
-    elif logged_in == 'Student':
-        render_user_page()
-    elif logged_in == 'Admin':
-        render_admin_page()
-
-def render_login_page():
-    db = connect_db()
-    user_collection = db.students
-    st.title("Login Portal")
-
-    login_option = st.radio("Select User Type", ["Student", "Admin"])
-
-    if login_option == "Student":
-        st.subheader("Student Login")
-        username = st.text_input("USN")
-        password = st.text_input("Password", type="password")
-        submitted = st.button("Login")
-
-        if submitted:
-            user = user_collection.find_one({"USN": username})
-            if user and student_login(username, password):
-                set_username(username)
-                set_login_status('Student')
-                st.experimental_rerun()
-            else:
-                st.error("Invalid student credentials")
-
-    elif login_option == "Admin":
-        st.subheader("Admin Login")
-        admin_username = st.text_input("Admin Username")
-        admin_password = st.text_input("Admin Password", type="password")
-        admin_submitted = st.button("Login as Admin")
-
-        if admin_submitted:
-            user = user_collection.find_one({"Username": admin_username})
-            if user and admin_login(user, admin_username, admin_password):
-                st.success("Admin login successful!")
-                set_login_status('Admin')
-                st.experimental_rerun()
-            else:
-                st.error("Invalid admin credentials")
-
-def render_admin_page():
-    st.title("Admin Dashboard")
-    menu_option = st.sidebar.selectbox("Menu", ["Add Student", "Add Attendance", "Add Marks", "Add Event", "View Events", "Analyze Correlation"])
-
-    if menu_option == "Add Student":
-        add_student()
-    elif menu_option == "Add Attendance":
-        add_attendance()
-    elif menu_option == "Add Marks":
-        add_marks()
-    elif menu_option == "Add Event":
-        add_event()
-    elif menu_option == "View Events":
-        render_events_page()
-    elif menu_option == "Analyze Correlation":
-        username = get_username()['username']
-        analyze_correlation(username)
-
-def render_user_page():
-    st.title("Student Dashboard")
-    username = get_username()['username']
-    menu_option = st.sidebar.selectbox("Menu", ["View Attendance", "View Marks", "Analyze Correlation"])
-
-    if menu_option == "View Attendance":
-        render_attendance_page(username)
-    elif menu_option == "View Marks":
-        render_marks_page(username)
-    elif menu_option == "Analyze Correlation":
-        analyze_correlation(username)
+        st.info("Not enough data to calculate correlation.")
 
 def render_attendance_page(username):
     db = connect_db()
@@ -340,6 +314,17 @@ def render_marks_page(username):
             st.info("No marks data available.")
     else:
         st.error("User not found.")
+
+def main():
+    if 'login_status' not in st.session_state:
+        st.session_state['login_status'] = ''
+
+    if st.session_state['login_status'] == 'Admin':
+        render_admin_page()
+    elif st.session_state['login_status'] == 'Student':
+        render_user_page()
+    else:
+        render_login_page()
 
 if __name__ == "__main__":
     main()
