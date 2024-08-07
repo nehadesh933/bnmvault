@@ -250,15 +250,18 @@ def add_marks():
     add_marks_button = st.button("Add Marks")
 
     if add_marks_button:
-        user = user_col.find_one({"USN": student_usn})
-        if user:
-            user_col.update_one({"USN": student_usn},
-                                {'$set': {f'Marks.{selected_subject}': {'Marks Obtained': marks_obtained,
-                                                                        'Total Marks': total_marks}}})
-            st.success("Marks updated successfully!")
-            render_marks_page(student_usn)  # Call the function to display marks
+        if student_usn:
+            user = user_col.find_one({"USN": student_usn})
+            if user:
+                user_col.update_one({"USN": student_usn},
+                                    {'$set': {f'Marks.{selected_subject}': {'Marks Obtained': marks_obtained,
+                                                                            'Total Marks': total_marks}}})
+                st.success("Marks updated successfully!")
+                render_marks_page(student_usn)  # Call the function to display marks
+            else:
+                st.error("User does not exist.")
         else:
-            st.error("User does not exist.")
+            st.error("Please enter a valid USN.")
 
 def add_event():
     db = connect_db()
@@ -466,8 +469,12 @@ def render_marks_page(usn):
     db = connect_db()
     user_col = db['students']
     user = user_col.find_one({"USN": usn})
-    marks = user.get("Marks", {})
+    
+    if not user:
+        st.error("User not found.")
+        return
 
+    marks = user.get("Marks", {})
     if not marks:
         st.info("No academic records found.")
         return
@@ -486,12 +493,15 @@ def render_marks_page(usn):
         'Total Marks': total_marks
     })
 
+    # Debugging: Check the DataFrame content
+    st.write("Marks Data:", marks_data)
+
     # Handle division by zero
     marks_data['Marks %'] = (marks_data['Marks Obtained'] / marks_data['Total Marks']) * 100
     marks_data['Marks %'] = marks_data['Marks %'].fillna(0)  # Replace NaN with 0
 
-    # Debugging: Check the DataFrame content
-    st.write("Marks Data:", marks_data)
+    # Debugging: Check Marks %
+    st.write("Marks % Data:", marks_data[['Subject', 'Marks %']])
 
     # Line chart for academic performance
     chart = alt.Chart(marks_data).mark_line().encode(
