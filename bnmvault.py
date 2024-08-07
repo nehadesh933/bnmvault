@@ -158,7 +158,7 @@ def list_students_under_risk():
 
         # Check for insufficient marks
         marks_below_threshold = any(
-            (marks_info['Marks Obtained'] / marks_info['Total Marks'] * 100) < 20
+            (marks_info['Marks Obtained'] / marks_info['Total Marks'] * 100) < 40
             for marks_info in marks.values()
         )
         if marks_below_threshold:
