@@ -62,36 +62,50 @@ def calculate_correlation(x, y):
     return f"{correlation_percentage:.2f}%"
 
 def analyze_correlation():
-    """Analyze correlation between attendance and marks for all students."""
     db = connect_db()
     user_col = db['students']
     
-    # Retrieve all student records
-    students = user_col.find()
-    
+    students = list(user_col.find({}))  # Get all student records
+
     results = []
+    
     for student in students:
         usn = student.get("USN")
-        attendance = student.get("Attendance", {})
         marks = student.get("Marks", {})
+        attendance = student.get("Attendance", {})
+
+        # Find common subjects
+        common_subjects = set(marks.keys()).intersection(set(attendance.keys()))
         
-        common_subjects = set(attendance.keys()) & set(marks.keys())
-        
-        if common_subjects:
-            attendance_values = [attendance[subject]['Classes Present'] / attendance[subject]['Total Classes'] * 100 for subject in common_subjects]
-            marks_values = [marks[subject]['Marks Obtained'] / marks[subject]['Total Marks'] * 100 for subject in common_subjects]
-            
-            correlation = calculate_correlation(attendance_values, marks_values)
-            results.append({'USN': usn, 'Correlation': correlation})
+        if not common_subjects:
+            correlation = "No common subjects"
         else:
-            results.append({'USN': usn, 'Correlation': 'No common subjects'})
-    
-    # Display results
+            marks_values = []
+            attendance_values = []
+
+            for subject in common_subjects:
+                marks_info = marks[subject]
+                attendance_info = attendance[subject]
+
+                # Compute percentages
+                if marks_info['Total Marks'] > 0 and attendance_info['Total Classes'] > 0:
+                    marks_percentage = (marks_info['Marks Obtained'] / marks_info['Total Marks']) * 100
+                    attendance_percentage = (attendance_info['Classes Present'] / attendance_info['Total Classes']) * 100
+                    marks_values.append(marks_percentage)
+                    attendance_values.append(attendance_percentage)
+
+            # Calculate correlation
+            if marks_values and attendance_values:
+                correlation = calculate_correlation(attendance_values, marks_values)
+            else:
+                correlation = "Insufficient data"
+
+        results.append({"USN": usn, "Correlation": correlation})
+
+    # Create a DataFrame for display
+    results_df = pd.DataFrame(results)
     st.subheader("Correlation Analysis")
-    for result in results:
-        usn = result['USN']
-        correlation = result['Correlation']
-        st.write(f"USN: {usn}, Correlation: {correlation}")
+    st.dataframe(results_df)
 #
 #
 def list_students_under_risk():
