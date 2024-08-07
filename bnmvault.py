@@ -486,19 +486,24 @@ def render_marks_page(usn):
         'Total Marks': total_marks
     })
 
-    # Calculate marks percentage for each subject
+    # Handle division by zero
     marks_data['Marks %'] = (marks_data['Marks Obtained'] / marks_data['Total Marks']) * 100
+    marks_data['Marks %'] = marks_data['Marks %'].fillna(0)  # Replace NaN with 0
+
+    # Debugging: Check the DataFrame content
+    st.write("Marks Data:", marks_data)
 
     # Line chart for academic performance
     chart = alt.Chart(marks_data).mark_line().encode(
-        x='Subject',
-        y='Marks %',
-        color='Subject'
+        x=alt.X('Subject:O', title='Subject'),
+        y=alt.Y('Marks %:Q', title='Marks %'),
+        color='Subject:N'
     ).properties(
         title='Academic Performance by Subject'
     )
 
     st.altair_chart(chart, use_container_width=True)
+
 
 def render_fees_page(usn):
     db = connect_db()
