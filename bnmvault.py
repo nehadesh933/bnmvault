@@ -43,26 +43,14 @@ def set_login_status(logged_in):
     login_status.clear()
     login_status.append(logged_in)
 #
-def calculate_correlation(x, y):
-    """Calculate Pearson correlation coefficient between two lists of values."""
-    if len(x) != len(y) or len(x) == 0:
-        return "Insufficient data"
-    
-    # Convert lists to numpy arrays
-    x = np.array(x)
-    y = np.array(y)
-    
-    # Calculate the Pearson correlation coefficient
-    correlation_matrix = np.corrcoef(x, y)
-    correlation_coefficient = correlation_matrix[0, 1]
-    
-    # Convert the coefficient to percentage
-    correlation_percentage = correlation_coefficient * 100
-    
-    return f"{correlation_percentage:.2f}%"
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-import pandas as pd
-import numpy as np
+def calculate_correlation(x, y):
+    """Calculate Pearson correlation coefficient."""
+    if len(x) == len(y):
+        return pd.Series(x).corr(pd.Series(y))
+    return None
 
 def analyze_correlation():
     db = connect_db()
@@ -71,6 +59,10 @@ def analyze_correlation():
     students = list(user_col.find({}))  # Get all student records
 
     results = []
+
+    marks_list = []
+    attendance_list = []
+    usns = []
 
     for student in students:
         usn = student.get("USN")
@@ -100,6 +92,9 @@ def analyze_correlation():
             # Calculate correlation
             if marks_values and attendance_values:
                 correlation = calculate_correlation(attendance_values, marks_values)
+                marks_list.extend(marks_values)
+                attendance_list.extend(attendance_values)
+                usns.append(usn)
             else:
                 correlation = "Insufficient data"
 
@@ -129,6 +124,26 @@ def analyze_correlation():
     st.subheader("Correlation Analysis")
     styled_df = results_df.style.applymap(highlight_correlation, subset=['Correlation'])
     st.dataframe(styled_df)
+
+    # Generate Correlation Heatmap
+    if marks_list and attendance_list:
+        correlation_df = pd.DataFrame({
+            'Attendance %': attendance_list,
+            'Marks %': marks_list
+        })
+
+        # Calculate correlation matrix
+        correlation_matrix = correlation_df.corr()
+
+        # Create heatmap
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', vmin=-1, vmax=1, center=0, fmt='.2f')
+        plt.title('Correlation Heatmap')
+
+        # Display heatmap in Streamlit
+        st.pyplot(plt)
+
+
 
 #
 #
