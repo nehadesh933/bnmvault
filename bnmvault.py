@@ -168,18 +168,17 @@ def list_students_under_risk():
     nsar_df = pd.DataFrame(nsar_list, columns=["USN"])
     nssr_df = pd.DataFrame(nssr_list, columns=["USN"])
 
-    st.subheader("Students with Insufficient Attendance (NSAR)")
+    st.subheader("Not Sufficient Attendance Requirements (NSAR)")
     if not nsar_df.empty:
         st.dataframe(nsar_df, width=300)
     else:
         st.write("No students found with insufficient attendance.")
 
-    st.subheader("Students with Insufficient Marks (NSSR)")
+    st.subheader("Not Sufficient Students Results (NSSR)")
     if not nssr_df.empty:
         st.dataframe(nssr_df, width=300)
     else:
-        st.write("No students found with insufficient marks.")
-
+        st.write("No students found with insufficient results.")
 #
 
 
