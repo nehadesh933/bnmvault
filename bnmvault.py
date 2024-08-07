@@ -237,6 +237,7 @@ def add_attendance():
         else:
             st.error("User does not exist.")
 
+
 # Function to add marks
 def add_marks():
     db = connect_db()
@@ -466,6 +467,29 @@ def render_attendance_page(usn):
 
     st.altair_chart(chart, use_container_width=True)
 
+    # Check for any subjects with attendance below 85%
+    low_attendance_subjects = attendance_data[attendance_data['Attendance %'] < 85]
+
+    if not low_attendance_subjects.empty:
+        st.subheader("Submit Leave Note")
+        leave_date = st.date_input("Date of Leave")
+        leave_letter = st.file_uploader("Upload Leave Letter (PDF format)", type=["pdf"])
+        
+        if st.button("Submit Leave Note"):
+            if leave_date and leave_letter:
+                # Save PDF to database or a storage service (e.g., S3)
+                leave_letter_data = leave_letter.read()
+                leave_notes_collection = db['leave_notes']
+                leave_notes_collection.insert_one({
+                    "USN": usn,
+                    "Date of Leave": str(leave_date),
+                    "Leave Letter": leave_letter_data
+                })
+                st.success("Leave note submitted successfully!")
+            else:
+                st.error("Please provide both date and leave letter.")
+
+
 def render_marks_page(usn):
     db = connect_db()
     user_col = db['students']
@@ -510,8 +534,6 @@ def render_marks_page(usn):
     )
 
     st.altair_chart(line_chart, use_container_width=True)
-
-
 
 def render_fees_page(usn):
     db = connect_db()
