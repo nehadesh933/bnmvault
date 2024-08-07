@@ -482,36 +482,25 @@ def render_marks_page(usn):
 
     st.subheader("Academic Overview")
 
-    # Prepare data for Altair chart
+    # Prepare data for table
     subjects = list(marks.keys())
     marks_obtained = [marks[subject]['Marks Obtained'] for subject in subjects]
     total_marks = [marks[subject]['Total Marks'] for subject in subjects]
 
-    # Adjust the total_marks to be 50 for normalization
+    # Adjust the marks to be displayed out of 50
     adjusted_marks_obtained = [mark / total * 50 for mark, total in zip(marks_obtained, total_marks)]
     adjusted_total_marks = [50] * len(subjects)  # Total marks will be 50 for normalization
 
-    # Create a DataFrame for the chart
+    # Create a DataFrame for the table
     marks_data = pd.DataFrame({
         'Subject': subjects,
-        'Marks Obtained': adjusted_marks_obtained,
-        'Total Marks': adjusted_total_marks
+        'Marks Obtained (Adjusted)': adjusted_marks_obtained,
+        'Total Marks (Adjusted)': adjusted_total_marks,
+        'Marks %': [(mark / 50) * 100 for mark in adjusted_marks_obtained]  # Percentage based on 50
     })
 
-    # Calculate marks percentage for each subject based on the adjusted total of 50
-    marks_data['Marks %'] = (marks_data['Marks Obtained'] / marks_data['Total Marks']) * 100
-    marks_data['Marks %'] = marks_data['Marks %'].fillna(0)  # Replace NaN with 0
-
-    # Line chart for academic performance
-    chart = alt.Chart(marks_data).mark_line().encode(
-        x=alt.X('Subject:O', title='Subject'),
-        y=alt.Y('Marks %:Q', title='Marks %'),
-        color='Subject:N'
-    ).properties(
-        title='Academic Performance by Subject (Scaled to 50 Marks)'
-    )
-
-    st.altair_chart(chart, use_container_width=True)
+    # Display the table
+    st.write("Marks Data:", marks_data)
 
 
 def render_fees_page(usn):
