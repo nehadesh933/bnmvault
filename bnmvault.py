@@ -545,7 +545,6 @@ def add_fees():
     student_usn = st.text_input("Student USN")
     fee_amount = st.number_input("Fee Amount", min_value=0.0, format="%.2f")
     fee_status = st.selectbox("Fee Status", ["Pending", "Paid", "Partial"])
-    fee_notes = st.text_area("Additional Notes")
 
     # Button to submit the fee details
     add_fees_button = st.button("Submit Fee Details")
@@ -564,15 +563,13 @@ def add_fees():
                 {'$set': {
                     'Fees': {
                         'Amount': fee_amount,
-                        'Status': fee_status,
-                        'Notes': fee_notes
+                        'Status': fee_status
                     }
                 }}
             )
             st.success("Fee details updated successfully!")
         else:
             st.error("User does not exist.")
-
 
 def render_fees_page(usn):
     db = connect_db()
@@ -588,14 +585,9 @@ def render_fees_page(usn):
 
     fee_amount = fees.get("Amount", "Not Available")
     fee_status = fees.get("Status", "Not Available")
-    fee_notes = fees.get("Notes", "Not Available")
 
-    st.write(f"Fee Amount: {fee_amount}")
+    st.write(f"Fee Amount: ${fee_amount:.2f}")
     st.write(f"Fee Status: {fee_status}")
-    st.write(f"Additional Notes: {fee_notes}")
-
-    # Optional: If you want to add a button to update the fee details
-    st.button("Edit Fee Details", on_click=add_fees)
 
 
 if __name__ == "__main__":
