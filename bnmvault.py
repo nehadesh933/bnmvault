@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import pymongo
+from datetime import datetime
 
 st.title("BNM VAULT")
 
@@ -241,96 +242,75 @@ def render_user_page():
         set_login_status(False)
         st.experimental_rerun()
 
-def render_attendance_page(usn):
+# Function to render the attendance page
+def render_attendance_page(username):
     db = connect_db()
-    user_col = db['students']
-    user = user_col.find_one({"USN": usn})
-    attendance = user.get("Attendance", {})
+    user_collection = db.students
 
-    if not attendance:
-        st.info("No attendance records found.")
-        return
+    user = user_collection.find_one({"USN": username})
 
-    st.subheader("Attendance Overview")
+    st.subheader("Attendance Details")
+    attendance_data = user.get("Attendance", {})
 
-    # Prepare data for Altair chart
-    subjects = list(attendance.keys())
-    classes_present = [attendance[subject]['Classes Present'] for subject in subjects]
-    total_classes = [attendance[subject]['Total Classes'] for subject in subjects]
+    for subject, attendance in attendance_data.items():
+        classes_present = attendance.get("Classes Present", 0)
+        total_classes = attendance.get("Total Classes", 0)
+        attendance_percentage = (classes_present / total_classes) * 100 if total_classes > 0 else 0
+        num_absent = total_classes - classes_present
 
-    # Create a DataFrame for the chart
-    attendance_data = pd.DataFrame({
-        'Subject': subjects,
-        'Classes Present': classes_present,
-        'Total Classes': total_classes
-    })
+        st.markdown(f"**{subject}**")
+        st.write(f"Classes Present: {classes_present}")
+        st.write(f"Total Classes: {total_classes}")
+        st.write(f"Attendance Percentage: {attendance_percentage:.2f}%")
+        st.write(f"Total Classes Absent: {num_absent}")
+        st.write("---")
 
-    # Calculate attendance percentage for each subject
-    attendance_data['Attendance %'] = (attendance_data['Classes Present'] / attendance_data['Total Classes']) * 100
-
-    # Bar chart for attendance percentage
-    chart = alt.Chart(attendance_data).mark_bar().encode(
-        x='Subject',
-        y='Attendance %',
-        color='Subject'
-    ).properties(
-        title='Attendance Percentage by Subject'
-    )
-
-    st.altair_chart(chart, use_container_width=True)
-
-def render_marks_page(usn):
+def render_marks_page(username):
     db = connect_db()
-    user_col = db['students']
-    user = user_col.find_one({"USN": usn})
-    marks = user.get("Marks", {})
-
-    if not marks:
-        st.info("No academic records found.")
-        return
-
-    st.subheader("Academic Overview")
-
-    # Prepare data for Altair chart
+    user_collection = db.students
+    user = user_collection.find_one({"USN": username})
+    st.subheader("Academic Marks")
+    marks = user.get('Marks', {})
     subjects = list(marks.keys())
-    marks_obtained = [marks[subject]['Marks Obtained'] for subject in subjects]
-    total_marks = [marks[subject]['Total Marks'] for subject in subjects]
 
-    # Create a DataFrame for the chart
-    marks_data = pd.DataFrame({
-        'Subject': subjects,
-        'Marks Obtained': marks_obtained,
-        'Total Marks': total_marks
-    })
+    subject_selector = st.selectbox("Select Subject", subjects)
 
-    # Calculate marks percentage for each subject
-    marks_data['Marks %'] = (marks_data['Marks Obtained'] / marks_data['Total Marks']) * 100
+    if subject_selector:
+        subject_marks = marks[subject_selector]
+        marks_obtained = subject_marks['Marks Obtained']
+        total_marks = subject_marks['Total Marks']
 
-    # Line chart for academic performance
-    chart = alt.Chart(marks_data).mark_line().encode(
-        x='Subject',
-        y='Marks %',
-        color='Subject'
-    ).properties(
-        title='Academic Performance by Subject'
-    )
+        col1, col2 = st.columns(2)
+        col1.metric("Marks Obtained", marks_obtained)
+        col2.metric("Total Marks", total_marks)
 
-    st.altair_chart(chart, use_container_width=True)
+        st.write("---")
 
-def render_fees_page(usn):
+def render_fees_page(username):
     db = connect_db()
-    user_col = db['students']
-    user = user_col.find_one({"USN": usn})
-    fees = user.get("Fees", {})
+    user_collection = db.students
+    user = user_collection.find_one({"USN": username})
+    st.subheader("Fee Payment Status")
 
-    if not fees:
-        st.info("No fee records found.")
-        return
+    # Display fee status and payment date
+    fee_status = user.get('Fees', {}).get('Status', 'Not Updated')
+    payment_date = user.get('Fees', {}).get('Payment Date', 'Not Available')
+    st.write(f"Current Fee Status: {fee_status}")
+    st.write(f"Payment Date: {payment_date}")
 
-    st.subheader("Fee Details")
+    update_fee_status = st.checkbox("Update Fee Status")
 
-    fee_status = fees.get("Status", "Pending")
-    st.write(f"Fee Status: {fee_status}")
+    if update_fee_status:
+        fee_options = ["Paid", "Pending"]
+        selected_status = st.radio("Fee Status", fee_options)
 
-if __name__ == "__main__":
+        if selected_status:
+            current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            user_collection.update_one({"USN": username},
+                                       {'$set': {'Fees.Status': selected_status,
+                                                 'Fees.Payment Date': current_datetime}})
+            st.success("Fee status updated successfully!")
+            st.experimental_rerun()
+
+if __name__ == '__main__':
     main()
