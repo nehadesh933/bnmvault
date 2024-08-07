@@ -61,6 +61,9 @@ def calculate_correlation(x, y):
     
     return f"{correlation_percentage:.2f}%"
 
+import pandas as pd
+import numpy as np
+
 def analyze_correlation():
     db = connect_db()
     user_col = db['students']
@@ -68,7 +71,7 @@ def analyze_correlation():
     students = list(user_col.find({}))  # Get all student records
 
     results = []
-    
+
     for student in students:
         usn = student.get("USN")
         marks = student.get("Marks", {})
@@ -104,60 +107,79 @@ def analyze_correlation():
 
     # Create a DataFrame for display
     results_df = pd.DataFrame(results)
+
+    # Define styling for the DataFrame
+    def highlight_correlation(val):
+        if isinstance(val, str) and "No common subjects" in val:
+            return 'background-color: lightcoral'
+        elif isinstance(val, str) and "Insufficient data" in val:
+            return 'background-color: lightyellow'
+        elif isinstance(val, str) and 'nan%' in val:
+            return 'background-color: lightgrey'
+        elif isinstance(val, str) and '%' in val:
+            correlation_value = float(val.strip('%'))
+            if correlation_value > 75:
+                return 'background-color: lightgreen'
+            elif correlation_value > 50:
+                return 'background-color: lightblue'
+            else:
+                return 'background-color: lightcoral'
+        return ''
+
     st.subheader("Correlation Analysis")
-    st.dataframe(results_df)
+    styled_df = results_df.style.applymap(highlight_correlation, subset=['Correlation'])
+    st.dataframe(styled_df)
+
 #
 #
+
 def list_students_under_risk():
-    """Generate lists of students under risk based on attendance and marks."""
     db = connect_db()
     user_col = db['students']
-    
-    nsar_list = []
-    nssr_list = []
-    
-    # Retrieve all student records
-    students = user_col.find()
-    
+
+    # Fetch all student records
+    students = list(user_col.find({}))
+
+    nsar_list = []  # List for students with insufficient attendance
+    nssr_list = []  # List for students with insufficient marks
+
     for student in students:
         usn = student.get("USN")
         attendance = student.get("Attendance", {})
         marks = student.get("Marks", {})
-        
-        # Check attendance
-        for subject, record in attendance.items():
-            total_classes = record.get('Total Classes', 0)
-            classes_present = record.get('Classes Present', 0)
-            attendance_percentage = (classes_present / total_classes) * 100 if total_classes > 0 else 0
-            
-            if attendance_percentage < 85:
-                nsar_list.append(usn)
-                break  # No need to check further for this student
-        
-        # Check marks
-        for subject, record in marks.items():
-            total_marks = record.get('Total Marks', 0)
-            marks_obtained = record.get('Marks Obtained', 0)
-            marks_percentage = (marks_obtained / total_marks) * 100 if total_marks > 0 else 0
-            
-            if marks_obtained < 20:
-                nssr_list.append(usn)
-                break  # No need to check further for this student
-    
-    # Display results
-    st.subheader("Students with Not Sufficient Attendance (NSAR)")
-    if nsar_list:
-        for usn in nsar_list:
-            st.write(f"USN: {usn}")
+
+        # Check for insufficient attendance
+        attendance_below_threshold = any(
+            (att_info['Classes Present'] / att_info['Total Classes'] * 100) < 85
+            for att_info in attendance.values()
+        )
+        if attendance_below_threshold:
+            nsar_list.append(usn)
+
+        # Check for insufficient marks
+        marks_below_threshold = any(
+            (marks_info['Marks Obtained'] / marks_info['Total Marks'] * 100) < 20
+            for marks_info in marks.values()
+        )
+        if marks_below_threshold:
+            nssr_list.append(usn)
+
+    # Create DataFrames for display
+    nsar_df = pd.DataFrame(nsar_list, columns=["USN"])
+    nssr_df = pd.DataFrame(nssr_list, columns=["USN"])
+
+    st.subheader("Students with Insufficient Attendance (NSAR)")
+    if not nsar_df.empty:
+        st.dataframe(nsar_df, width=300)
     else:
-        st.write("No students with insufficient attendance.")
-    
-    st.subheader("Students with Not Sufficient Marks (NSSR)")
-    if nssr_list:
-        for usn in nssr_list:
-            st.write(f"USN: {usn}")
+        st.write("No students found with insufficient attendance.")
+
+    st.subheader("Students with Insufficient Marks (NSSR)")
+    if not nssr_df.empty:
+        st.dataframe(nssr_df, width=300)
     else:
-        st.write("No students with insufficient marks.")
+        st.write("No students found with insufficient marks.")
+
 #
 
 
