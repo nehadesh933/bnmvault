@@ -111,20 +111,21 @@ def analyze_correlation():
     # Define styling for the DataFrame
     def highlight_correlation(val):
         if isinstance(val, str) and "No common subjects" in val:
-            return 'background-color: lightcoral'
+            return 'background-color: #f8d7da'  # Light red
         elif isinstance(val, str) and "Insufficient data" in val:
-            return 'background-color: lightyellow'
+            return 'background-color: #ffffff'  # White
         elif isinstance(val, str) and 'nan%' in val:
-            return 'background-color: lightgrey'
+            return 'background-color: #ffffff'  # White
         elif isinstance(val, str) and '%' in val:
             correlation_value = float(val.strip('%'))
             if correlation_value > 75:
-                return 'background-color: lightgreen'
+                return 'background-color: #c3e6cb'  # Light green
             elif correlation_value > 50:
-                return 'background-color: lightblue'
+                return 'background-color: #bee5eb'  # Light blue
             else:
-                return 'background-color: lightcoral'
+                return 'background-color: #f5c6cb'  # Light red
         return ''
+
 
     st.subheader("Correlation Analysis")
     styled_df = results_df.style.applymap(highlight_correlation, subset=['Correlation'])
