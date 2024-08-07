@@ -263,6 +263,7 @@ def add_marks():
         else:
             st.error("Please enter a valid USN.")
 
+
 def add_event():
     db = connect_db()
     event_col = db['events']
@@ -493,15 +494,9 @@ def render_marks_page(usn):
         'Total Marks': total_marks
     })
 
-    # Debugging: Check the DataFrame content
-    st.write("Marks Data:", marks_data)
-
-    # Handle division by zero
+    # Calculate marks percentage for each subject
     marks_data['Marks %'] = (marks_data['Marks Obtained'] / marks_data['Total Marks']) * 100
     marks_data['Marks %'] = marks_data['Marks %'].fillna(0)  # Replace NaN with 0
-
-    # Debugging: Check Marks %
-    st.write("Marks % Data:", marks_data[['Subject', 'Marks %']])
 
     # Line chart for academic performance
     chart = alt.Chart(marks_data).mark_line().encode(
@@ -513,7 +508,6 @@ def render_marks_page(usn):
     )
 
     st.altair_chart(chart, use_container_width=True)
-
 
 def render_fees_page(usn):
     db = connect_db()
