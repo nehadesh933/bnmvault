@@ -482,7 +482,7 @@ def render_marks_page(usn):
 
     st.subheader("Academic Overview")
 
-    # Prepare data for table
+    # Prepare data for Altair chart
     subjects = list(marks.keys())
     marks_obtained = [marks[subject]['Marks Obtained'] for subject in subjects]
     total_marks = [marks[subject]['Total Marks'] for subject in subjects]
@@ -491,7 +491,7 @@ def render_marks_page(usn):
     adjusted_marks_obtained = [mark / total * 50 for mark, total in zip(marks_obtained, total_marks)]
     adjusted_total_marks = [50] * len(subjects)  # Total marks will be 50 for normalization
 
-    # Create a DataFrame for the table
+    # Create a DataFrame for the chart
     marks_data = pd.DataFrame({
         'Subject': subjects,
         'Marks Obtained (Adjusted)': adjusted_marks_obtained,
@@ -499,8 +499,18 @@ def render_marks_page(usn):
         'Marks %': [(mark / 50) * 100 for mark in adjusted_marks_obtained]  # Percentage based on 50
     })
 
-    # Display the table
-    st.write("Marks Data:", marks_data)
+    # Line chart for marks obtained
+    line_chart = alt.Chart(marks_data).mark_line(point=True).encode(
+        x='Subject',
+        y='Marks Obtained (Adjusted)',
+        color=alt.value('blue'),
+        tooltip=['Subject', 'Marks Obtained (Adjusted)', 'Marks %']
+    ).properties(
+        title='Marks Obtained by Subject'
+    )
+
+    st.altair_chart(line_chart, use_container_width=True)
+
 
 
 def render_fees_page(usn):
