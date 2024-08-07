@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import pymongo
+import numpy as np
 
 st.title("BNM VAULT")
 
@@ -41,6 +42,110 @@ def set_login_status(logged_in):
     login_status = get_login_status()
     login_status.clear()
     login_status.append(logged_in)
+#
+def calculate_correlation(x, y):
+    """Calculate Pearson correlation coefficient between two lists of values."""
+    if len(x) != len(y) or len(x) == 0:
+        return "Insufficient data"
+    
+    # Convert lists to numpy arrays
+    x = np.array(x)
+    y = np.array(y)
+    
+    # Calculate the Pearson correlation coefficient
+    correlation_matrix = np.corrcoef(x, y)
+    correlation_coefficient = correlation_matrix[0, 1]
+    
+    # Convert the coefficient to percentage
+    correlation_percentage = correlation_coefficient * 100
+    
+    return f"{correlation_percentage:.2f}%"
+
+def analyze_correlation():
+    """Analyze correlation between attendance and marks for all students."""
+    db = connect_db()
+    user_col = db['students']
+    
+    # Retrieve all student records
+    students = user_col.find()
+    
+    results = []
+    for student in students:
+        usn = student.get("USN")
+        attendance = student.get("Attendance", {})
+        marks = student.get("Marks", {})
+        
+        common_subjects = set(attendance.keys()) & set(marks.keys())
+        
+        if common_subjects:
+            attendance_values = [attendance[subject]['Classes Present'] / attendance[subject]['Total Classes'] * 100 for subject in common_subjects]
+            marks_values = [marks[subject]['Marks Obtained'] / marks[subject]['Total Marks'] * 100 for subject in common_subjects]
+            
+            correlation = calculate_correlation(attendance_values, marks_values)
+            results.append({'USN': usn, 'Correlation': correlation})
+        else:
+            results.append({'USN': usn, 'Correlation': 'No common subjects'})
+    
+    # Display results
+    st.subheader("Correlation Analysis")
+    for result in results:
+        usn = result['USN']
+        correlation = result['Correlation']
+        st.write(f"USN: {usn}, Correlation: {correlation}")
+#
+#
+def list_students_under_risk():
+    """Generate lists of students under risk based on attendance and marks."""
+    db = connect_db()
+    user_col = db['students']
+    
+    nsar_list = []
+    nssr_list = []
+    
+    # Retrieve all student records
+    students = user_col.find()
+    
+    for student in students:
+        usn = student.get("USN")
+        attendance = student.get("Attendance", {})
+        marks = student.get("Marks", {})
+        
+        # Check attendance
+        for subject, record in attendance.items():
+            total_classes = record.get('Total Classes', 0)
+            classes_present = record.get('Classes Present', 0)
+            attendance_percentage = (classes_present / total_classes) * 100 if total_classes > 0 else 0
+            
+            if attendance_percentage < 85:
+                nsar_list.append(usn)
+                break  # No need to check further for this student
+        
+        # Check marks
+        for subject, record in marks.items():
+            total_marks = record.get('Total Marks', 0)
+            marks_obtained = record.get('Marks Obtained', 0)
+            marks_percentage = (marks_obtained / total_marks) * 100 if total_marks > 0 else 0
+            
+            if marks_obtained < 20:
+                nssr_list.append(usn)
+                break  # No need to check further for this student
+    
+    # Display results
+    st.subheader("Students with Not Sufficient Attendance (NSAR)")
+    if nsar_list:
+        for usn in nsar_list:
+            st.write(f"USN: {usn}")
+    else:
+        st.write("No students with insufficient attendance.")
+    
+    st.subheader("Students with Not Sufficient Marks (NSSR)")
+    if nssr_list:
+        for usn in nssr_list:
+            st.write(f"USN: {usn}")
+    else:
+        st.write("No students with insufficient marks.")
+#
+
 
 # Function to add a student
 def add_student():
@@ -205,7 +310,8 @@ def render_login_page():
 
 def render_admin_page():
     st.title("Admin Dashboard")
-    menu_options = ["Add Student", "Add Attendance", "Add Marks", "Search by USN", "Add Fees Status", "Add Events"]
+    menu_options = ["Add Student", "Add Attendance", "Add Marks", "Search by USN", "Add Fees Status", "Add Events",
+                    "Analyze Corelation", "List of Students under Risk"]
     selected_option = st.sidebar.selectbox("Select an Option", menu_options)
 
     if selected_option == "Add Student":
@@ -220,6 +326,10 @@ def render_admin_page():
         render_fees_page()
     elif selected_option == "Add Events":
         add_event()
+    elif selected_option == "Analyze Corelation":
+        analyze_correlation()
+    elif selected_option == "List of Students under Risk":
+        list_students_under_risk()
 
     if st.sidebar.button("Logout"):
         set_login_status(False)
