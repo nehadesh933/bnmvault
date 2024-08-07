@@ -586,8 +586,17 @@ def render_fees_page(usn):
 
     st.subheader("Fee Details")
 
-    fee_status = fees.get("Status", "Pending")
+    fee_amount = fees.get("Amount", "Not Available")
+    fee_status = fees.get("Status", "Not Available")
+    fee_notes = fees.get("Notes", "Not Available")
+
+    st.write(f"Fee Amount: {fee_amount}")
     st.write(f"Fee Status: {fee_status}")
+    st.write(f"Additional Notes: {fee_notes}")
+
+    # Optional: If you want to add a button to update the fee details
+    st.button("Edit Fee Details", on_click=add_fees)
+
 
 if __name__ == "__main__":
     main()
