@@ -181,7 +181,7 @@ def render_admin_page():
     elif selected_option == "Search by USN":
         search_by_usn()
     elif selected_option == "Add Fees Status":
-        render_fees_page
+        render_fees_page()
 
     if st.sidebar.button("Logout"):
         set_login_status(False)
@@ -245,89 +245,83 @@ def render_attendance_page(username):
     db = connect_db()
     user_col = db['students']
     user = user_col.find_one({"USN": username})
-    
-    if user:
-        st.subheader("Attendance Records")
-        attendance_data = user.get('Attendance', {})
-        if not attendance_data:
-            st.write("No attendance records found.")
-        else:
-            data = []
-            for subject, records in attendance_data.items():
-                data.append({
-                    'Subject': subject,
-                    'Classes Present': records.get('Classes Present', 0),
-                    'Total Classes': records.get('Total Classes', 0)
-                })
-            df = pd.DataFrame(data)
-            chart = alt.Chart(df).mark_bar().encode(
-                x='Subject:N',
-                y='Classes Present:Q',
-                color='Subject:N'
-            ).properties(
-                title='Classes Present per Subject'
-            )
-            st.altair_chart(chart, use_container_width=True)
-    else:
+
+    if not user:
         st.error("User does not exist.")
+        return
+
+    attendance_data = user.get("Attendance", {})
+
+    st.subheader("Attendance Details")
+
+    if attendance_data:
+        for subject, attendance in attendance_data.items():
+            classes_present = attendance.get("Classes Present", 0)
+            total_classes = attendance.get("Total Classes", 0)
+            attendance_percentage = (classes_present / total_classes) * 100 if total_classes > 0 else 0
+
+            st.write(f"Subject: {subject}")
+            st.write(f"Classes Present: {classes_present}")
+            st.write(f"Total Classes: {total_classes}")
+            st.write(f"Attendance Percentage: {attendance_percentage:.2f}%")
+            st.write("---")
+    else:
+        st.info("No attendance records available.")
 
 def render_marks_page(username):
     db = connect_db()
     user_col = db['students']
     user = user_col.find_one({"USN": username})
 
-    if user:
-        st.subheader("Marks Records")
-        marks_data = user.get('Marks', {})
-        if not marks_data:
-            st.write("No marks records found.")
-        else:
-            data = []
-            for subject, records in marks_data.items():
-                data.append({
-                    'Subject': subject,
-                    'Marks Obtained': records.get('Marks Obtained', 0),
-                    'Total Marks': records.get('Total Marks', 0)
-                })
-            df = pd.DataFrame(data)
-            chart = alt.Chart(df).mark_bar().encode(
-                x='Subject:N',
-                y='Marks Obtained:Q',
-                color='Subject:N'
-            ).properties(
-                title='Marks Obtained per Subject'
-            )
-            st.altair_chart(chart, use_container_width=True)
-    else:
+    if not user:
         st.error("User does not exist.")
+        return
+
+    marks_data = user.get("Marks", {})
+
+    st.subheader("Marks Details")
+
+    if marks_data:
+        for subject, marks in marks_data.items():
+            marks_obtained = marks.get("Marks Obtained", 0)
+            total_marks = marks.get("Total Marks", 0)
+
+            st.write(f"Subject: {subject}")
+            st.write(f"Marks Obtained: {marks_obtained}")
+            st.write(f"Total Marks: {total_marks}")
+            st.write("---")
+    else:
+        st.info("No marks records available.")
 
 def render_fees_page():
     db = connect_db()
     user_col = db['students']
-    username = get_username()['username']
-    user = user_col.find_one({"USN": username})
+    st.title("Fees Management")
 
-    if get_login_status()[0] == 'Admin':
-        st.subheader("Update Fees Status")
-        student_usn = st.text_input("Student USN")
-        fees_status = st.selectbox("Fees Status", ["Pending", "Paid"])
-        update_fees_button = st.button("Update Fees Status")
+    st.subheader("Update Fee Status")
+    student_usn = st.text_input("Student USN")
+    fee_status_options = ["Paid", "Pending", "Exempted"]
+    selected_fee_status = st.selectbox("Select Fee Status", fee_status_options)
 
-        if update_fees_button:
-            if student_usn:
-                user = user_col.find_one({"USN": student_usn})
-                if user:
-                    user_col.update_one({"USN": student_usn}, {'$set': {"Fees.Status": fees_status}})
-                    st.success("Fees status updated successfully!")
-                else:
-                    st.error("Student does not exist.")
-            else:
-                st.error("Please enter a student USN.")
-    else:
+    update_fee_status_button = st.button("Update Fee Status")
+
+    if update_fee_status_button:
+        user = user_col.find_one({"USN": student_usn})
         if user:
-            st.subheader("Fees Status")
-            fees_status = user.get('Fees', {}).get('Status', 'Pending')
-            st.write(f"Current Fees Status: {fees_status}")
+            user_col.update_one({"USN": student_usn}, {'$set': {'Fees.Status': selected_fee_status}})
+            st.success("Fee status updated successfully!")
+        else:
+            st.error("User does not exist.")
+
+    st.subheader("Search Student Fee Status")
+    search_usn = st.text_input("Enter USN to search fee status")
+    search_fee_status_button = st.button("Search Fee Status")
+
+    if search_fee_status_button:
+        user = user_col.find_one({"USN": search_usn})
+        if user:
+            fee_status = user.get("Fees", {}).get("Status", "Unknown")
+            st.write(f"Fee Status for {search_usn}: {fee_status}")
         else:
             st.error("User does not exist.")
 
