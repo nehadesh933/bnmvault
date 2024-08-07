@@ -363,7 +363,7 @@ def render_admin_page():
     elif selected_option == "Search by USN":
         search_by_usn()
     elif selected_option == "Add Fees Status":
-        render_fees_page()
+        add_fees()
     elif selected_option == "Add Events":
         add_event()
     elif selected_option == "Analyze Corelation":
@@ -534,6 +534,45 @@ def render_marks_page(usn):
     )
 
     st.altair_chart(line_chart, use_container_width=True)
+
+def add_fees():
+    db = connect_db()
+    user_col = db['students']
+    
+    st.subheader("Add or Update Fees")
+
+    # Inputs
+    student_usn = st.text_input("Student USN")
+    fee_amount = st.number_input("Fee Amount", min_value=0.0, format="%.2f")
+    fee_status = st.selectbox("Fee Status", ["Pending", "Paid", "Partial"])
+    fee_notes = st.text_area("Additional Notes")
+
+    # Button to submit the fee details
+    add_fees_button = st.button("Submit Fee Details")
+
+    if add_fees_button:
+        if not student_usn:
+            st.error("Please enter a student USN.")
+            return
+
+        # Find the user by USN
+        user = user_col.find_one({"USN": student_usn})
+        if user:
+            # Update or add fee details
+            user_col.update_one(
+                {"USN": student_usn},
+                {'$set': {
+                    'Fees': {
+                        'Amount': fee_amount,
+                        'Status': fee_status,
+                        'Notes': fee_notes
+                    }
+                }}
+            )
+            st.success("Fee details updated successfully!")
+        else:
+            st.error("User does not exist.")
+
 
 def render_fees_page(usn):
     db = connect_db()
