@@ -133,6 +133,54 @@ def analyze_correlation():
 #
 #
 
+# def list_students_under_risk():
+#     db = connect_db()
+#     user_col = db['students']
+
+#     # Fetch all student records
+#     students = list(user_col.find({}))
+
+#     nsar_list = []  # List for students with insufficient attendance
+#     nssr_list = []  # List for students with insufficient marks
+
+#     for student in students:
+#         usn = student.get("USN")
+#         attendance = student.get("Attendance", {})
+#         marks = student.get("Marks", {})
+
+#         # Check for insufficient attendance
+#         attendance_below_threshold = any(
+#             (att_info['Classes Present'] / att_info['Total Classes'] * 100) < 85
+#             for att_info in attendance.values()
+#         )
+#         if attendance_below_threshold:
+#             nsar_list.append(usn)
+
+#         # Check for insufficient marks
+#         marks_below_threshold = any(
+#             (marks_info['Marks Obtained'] / marks_info['Total Marks'] * 100) < 40
+#             for marks_info in marks.values()
+#         )
+#         if marks_below_threshold:
+#             nssr_list.append(usn)
+
+#     # Create DataFrames for display
+#     nsar_df = pd.DataFrame(nsar_list, columns=["USN"])
+#     nssr_df = pd.DataFrame(nssr_list, columns=["USN"])
+
+#     st.subheader("Not Sufficient Attendance Requirements (NSAR)")
+#     if not nsar_df.empty:
+#         st.dataframe(nsar_df, width=300)
+#     else:
+#         st.write("No students found with insufficient attendance.")
+
+#     st.subheader("Not Sufficient Students Results (NSSR)")
+#     if not nssr_df.empty:
+#         st.dataframe(nssr_df, width=300)
+#     else:
+#         st.write("No students found with insufficient results.")
+# #
+
 def list_students_under_risk():
     db = connect_db()
     user_col = db['students']
@@ -150,7 +198,10 @@ def list_students_under_risk():
 
         # Check for insufficient attendance
         attendance_below_threshold = any(
-            (att_info['Classes Present'] / att_info['Total Classes'] * 100) < 85
+            (
+                int(att_info.get('Classes Present', 0)) / 
+                max(int(att_info.get('Total Classes', 1)), 1) * 100
+            ) < 85
             for att_info in attendance.values()
         )
         if attendance_below_threshold:
@@ -158,7 +209,10 @@ def list_students_under_risk():
 
         # Check for insufficient marks
         marks_below_threshold = any(
-            (marks_info['Marks Obtained'] / marks_info['Total Marks'] * 100) < 40
+            (
+                int(marks_info.get('Marks Obtained', 0)) / 
+                max(int(marks_info.get('Total Marks', 1)), 1) * 100
+            ) < 40
             for marks_info in marks.values()
         )
         if marks_below_threshold:
@@ -179,7 +233,8 @@ def list_students_under_risk():
         st.dataframe(nssr_df, width=300)
     else:
         st.write("No students found with insufficient results.")
-#
+
+
 from datetime import date
 
 # Function to add a student
