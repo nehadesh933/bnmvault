@@ -480,14 +480,17 @@ def render_attendance_page(usn):
         
         if st.button("Submit Leave Note"):
             if leave_date and leave_letter:
-                # Save PDF to database or a storage service (e.g., S3)
+                # Save PDF to the student's attendance record in the database
                 leave_letter_data = leave_letter.read()
-                leave_notes_collection = db['leave_notes']
-                leave_notes_collection.insert_one({
-                    "USN": usn,
-                    "Date of Leave": str(leave_date),
-                    "Leave Letter": leave_letter_data
-                })
+                
+                # Update the student's document to add the leave note under attendance
+                user_col.update_one(
+                    {"USN": usn},
+                    {"$set": {
+                        f"Attendance.Leave Notes.{str(leave_date)}": leave_letter_data
+                    }}
+                )
+                
                 st.success("Leave note submitted successfully!")
             else:
                 st.error("Please provide both date and leave letter.")
