@@ -180,7 +180,7 @@ def list_students_under_risk():
     else:
         st.write("No students found with insufficient results.")
 #
-
+from datetime import date
 
 # Function to add a student
 def add_student():
@@ -193,7 +193,10 @@ def add_student():
     student_Lname = st.text_input("Last Name")
     student_age = st.text_input("Age")
     student_gen = st.text_input("Gender")
-    student_dob = st.date_input("DOB")
+    min_date = date(2000, 1, 1)
+    max_date = date(2014, 12, 31)
+    # Create the date input field with the specified range
+    student_dob = st.date_input("DOB", min_value=min_date, max_value=max_date)
     student_mail = st.text_input("Email")
     add_student_button = st.button("Add Student")
 
@@ -586,7 +589,7 @@ def render_fees_page(usn):
     fee_amount = fees.get("Amount", "Not Available")
     fee_status = fees.get("Status", "Not Available")
 
-    st.write(f"Fee Amount: ${fee_amount:.2f}")
+    st.write(f"Fee Amount: Rs. {fee_amount:.2f}")
     st.write(f"Fee Status: {fee_status}")
 
 
