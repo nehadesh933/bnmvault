@@ -215,70 +215,30 @@ def add_attendance():
     db = connect_db()
     user_col = db['students']
     st.subheader("Add Attendance")
-    
-    # Add a selectbox or text input to choose or input the student's USN
-    student_usn = st.text_input("Enter Student USN")
-    
-    # Fetch student record based on USN
-    if student_usn:
+    date = st.date_input("Date")
+    student_usn = st.text_input("Student USN")
+    subject_options = ["Math", "Operating System", "English", "Computer Organization"]
+    selected_subject = st.selectbox("Select Subject", subject_options)
+    classes_present = st.number_input("Classes Present", min_value=0)
+    total_classes = st.number_input("Total Classes", min_value=0)
+
+    attendance_percentage = (classes_present / total_classes) * 100 if total_classes > 0 else 0
+    st.write(f"Attendance Percentage: {attendance_percentage:.2f}%")
+    num_absent = total_classes - classes_present
+    st.write(f"Total Classes Absent: {num_absent}")
+
+    add_attendance_button = st.button("Add Attendance")
+
+    if add_attendance_button:
         user = user_col.find_one({"USN": student_usn})
-        
         if user:
-            st.subheader("Submit Attendance")
-            subject_options = ["Math", "Operating System", "English", "Computer Organization"]
-            selected_subject = st.selectbox("Select Subject", subject_options)
-            classes_present = st.number_input("Classes Present", min_value=0)
-            total_classes = st.number_input("Total Classes", min_value=0)
-
-            attendance_percentage = (classes_present / total_classes) * 100 if total_classes > 0 else 0
-            st.write(f"Attendance Percentage: {attendance_percentage:.2f}%")
-            num_absent = total_classes - classes_present
-            st.write(f"Total Classes Absent: {num_absent}")
-
-            add_attendance_button = st.button("Add Attendance")
-
-            if add_attendance_button:
-                # Update attendance in the database
-                update_fields = {
-                    f'Attendance.{selected_subject}': {
-                        'Classes Present': classes_present,
-                        'Total Classes': total_classes
-                    }
-                }
-
-                user_col.update_one({"USN": student_usn}, {'$set': update_fields})
-                st.success("Attendance updated successfully!")
-            
-            # Display leave notes for the student
-            st.subheader("Leave Notes")
-            leave_notes = user.get('Attendance', {}).get('Leave Notes', {})
-            
-            if leave_notes:
-                for leave_date, note_details in leave_notes.items():
-                    st.write(f"Date of Leave: {leave_date}")
-                    
-                    # Ensure the note_details dictionary contains the expected keys
-                    subject = note_details.get('Subject', 'Unknown Subject')
-                    leave_letter_bytes = note_details.get('Leave Letter')
-
-                    st.write(f"Subject: {subject}")
-
-                    if leave_letter_bytes:
-                        # Display PDF leave letter download button
-                        st.download_button(
-                            label=f"Download Leave Letter for {leave_date}",
-                            data=leave_letter_bytes,
-                            file_name=f"Leave_Letter_{student_usn}_{leave_date}.pdf",
-                            mime="application/pdf"
-                        )
-                    else:
-                        st.warning("No leave letter found for this entry.")
-            else:
-                st.info("No leave notes found for this student.")
+            user_col.update_one({"USN": student_usn},
+                                {'$set': {f'Attendance.{selected_subject}': {'Classes Present': classes_present,
+                                                                             'Total Classes': total_classes}}})
+            st.success("Attendance updated successfully!")
+            render_attendance_page(student_usn)  # Call the function to display attendance
         else:
-            st.error("Student does not exist. Please check the USN.")
-
-
+            st.error("User does not exist.")
 
 
 # Function to add marks
@@ -516,28 +476,6 @@ def render_attendance_page(usn):
 
     # Check for any subjects with attendance below 85%
     low_attendance_subjects = attendance_data[attendance_data['Attendance %'] < 85]
-
-    if not low_attendance_subjects.empty:
-        st.subheader("Submit Leave Note")
-        leave_date = st.date_input("Date of Leave")
-        leave_letter = st.file_uploader("Upload Leave Letter (PDF format)", type=["pdf"])
-        
-        if st.button("Submit Leave Note"):
-            if leave_date and leave_letter:
-                # Save PDF to the student's attendance record in the database
-                leave_letter_data = leave_letter.read()
-                
-                # Update the student's document to add the leave note under attendance
-                user_col.update_one(
-                    {"USN": usn},
-                    {"$set": {
-                        f"Attendance.Leave Notes.{str(leave_date)}": leave_letter_data
-                    }}
-                )
-                
-                st.success("Leave note submitted successfully!")
-            else:
-                st.error("Please provide both date and leave letter.")
 
 
 def render_marks_page(usn):
