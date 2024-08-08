@@ -256,18 +256,28 @@ def add_attendance():
             if leave_notes:
                 for leave_date, note_details in leave_notes.items():
                     st.write(f"Date of Leave: {leave_date}")
-                    st.write(f"Subject: {note_details['Subject']}")
                     
-                    # Display PDF leave letter download button
-                    leave_letter_bytes = note_details['Leave Letter']
-                    st.download_button(label=f"Download Leave Letter for {leave_date}",
-                                       data=leave_letter_bytes,
-                                       file_name=f"Leave_Letter_{student_usn}_{leave_date}.pdf",
-                                       mime="application/pdf")
+                    # Ensure the note_details dictionary contains the expected keys
+                    subject = note_details.get('Subject', 'Unknown Subject')
+                    leave_letter_bytes = note_details.get('Leave Letter')
+
+                    st.write(f"Subject: {subject}")
+
+                    if leave_letter_bytes:
+                        # Display PDF leave letter download button
+                        st.download_button(
+                            label=f"Download Leave Letter for {leave_date}",
+                            data=leave_letter_bytes,
+                            file_name=f"Leave_Letter_{student_usn}_{leave_date}.pdf",
+                            mime="application/pdf"
+                        )
+                    else:
+                        st.warning("No leave letter found for this entry.")
             else:
                 st.info("No leave notes found for this student.")
         else:
             st.error("Student does not exist. Please check the USN.")
+
 
 
 
