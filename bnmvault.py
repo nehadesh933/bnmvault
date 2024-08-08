@@ -227,18 +227,66 @@ def add_attendance():
     num_absent = total_classes - classes_present
     st.write(f"Total Classes Absent: {num_absent}")
 
+    # Display leave note input fields if there are any absent classes
+    if num_absent > 0:
+        st.subheader("Submit Leave Note")
+        leave_date = st.date_input("Date of Leave", min_value=date)  # Default leave date to today or later
+        leave_letter = st.file_uploader("Upload Leave Letter (PDF format)", type=["pdf"])
+
     add_attendance_button = st.button("Add Attendance")
 
     if add_attendance_button:
         user = user_col.find_one({"USN": student_usn})
         if user:
-            user_col.update_one({"USN": student_usn},
-                                {'$set': {f'Attendance.{selected_subject}': {'Classes Present': classes_present,
-                                                                             'Total Classes': total_classes}}})
+            # Update attendance
+            update_fields = {
+                f'Attendance.{selected_subject}': {
+                    'Classes Present': classes_present,
+                    'Total Classes': total_classes
+                }
+            }
+
+            # Include leave note if provided
+            if num_absent > 0 and leave_date and leave_letter:
+                leave_letter_data = leave_letter.read()
+                update_fields[f"Attendance.Leave Notes.{str(leave_date)}"] = {
+                    'Subject': selected_subject,
+                    'Leave Letter': leave_letter_data
+                }
+
+            user_col.update_one({"USN": student_usn}, {'$set': update_fields})
             st.success("Attendance updated successfully!")
-            render_attendance_page(student_usn)  # Call the function to display attendance
+            render_attendance_page(student_usn)
         else:
             st.error("User does not exist.")
+
+def view_leave_notes():
+    db = connect_db()
+    user_col = db['students']
+    st.subheader("View Leave Notes")
+
+    # Retrieve all students with leave notes
+    students_with_leave_notes = user_col.find({"Attendance.Leave Notes": {"$exists": True, "$ne": {}}})
+
+    for student in students_with_leave_notes:
+        st.markdown(f"**Student USN: {student['USN']}**")
+        leave_notes = student.get('Attendance', {}).get('Leave Notes', {})
+
+        if leave_notes:
+            for leave_date, note_details in leave_notes.items():
+                st.write(f"Date of Leave: {leave_date}")
+                st.write(f"Subject: {note_details['Subject']}")
+
+                # Display PDF leave letter
+                leave_letter_bytes = note_details['Leave Letter']
+                st.download_button(label="Download Leave Letter", data=leave_letter_bytes, file_name=f"Leave_Letter_{student['USN']}_{leave_date}.pdf", mime="application/pdf")
+
+        st.markdown("---")
+
+# Call this function in your admin dashboard
+def admin_dashboard():
+    st.title("Admin Dashboard")
+    view_leave_notes()
 
 
 # Function to add marks
@@ -498,7 +546,6 @@ def render_attendance_page(usn):
                 st.success("Leave note submitted successfully!")
             else:
                 st.error("Please provide both date and leave letter.")
-
 
 
 def render_marks_page(usn):
