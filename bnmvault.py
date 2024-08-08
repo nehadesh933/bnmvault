@@ -446,8 +446,12 @@ def render_attendance_page(usn):
 
     # Prepare data for Altair chart
     subjects = list(attendance.keys())
-    classes_present = [attendance[subject]['Classes Present'] for subject in subjects]
-    total_classes = [attendance[subject]['Total Classes'] for subject in subjects]
+    classes_present = [
+        attendance[subject].get('Classes Present', 0) for subject in subjects
+    ]
+    total_classes = [
+        attendance[subject].get('Total Classes', 0) for subject in subjects
+    ]
 
     # Create a DataFrame for the chart
     attendance_data = pd.DataFrame({
@@ -494,6 +498,7 @@ def render_attendance_page(usn):
                 st.success("Leave note submitted successfully!")
             else:
                 st.error("Please provide both date and leave letter.")
+
 
 
 def render_marks_page(usn):
